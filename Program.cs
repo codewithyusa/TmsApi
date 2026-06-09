@@ -1,23 +1,28 @@
+using Microsoft.AspNetCore.Authentication;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+builder.Services.AddAuthentication("Training")
+    .AddScheme<AuthenticationSchemeOptions, TrainingAuthHandler>("Training", null);
 
-builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+app.UseRouting();
 
-app.UseHttpsRedirection();
-
+app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
+app.MapGet("/api/assessments/results", () =>
+{
+    return Results.Ok(new
+    {
+        courseCode = "CS-101",
+        studentId = "S-001",
+        letterGrade = "A"
+    });
+})
+.RequireAuthorization();
 
 app.Run();
