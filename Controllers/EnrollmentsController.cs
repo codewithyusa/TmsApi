@@ -11,7 +11,7 @@ public class EnrollmentsController : ControllerBase
         _enrollmentService = enrollmentService;
     }
 
-    // GET: api/enrollments
+    // GET all
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -19,19 +19,16 @@ public class EnrollmentsController : ControllerBase
         return Ok(enrollments);
     }
 
-    // GET: api/enrollments/{id}
+    // GET by id
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
         var record = await _enrollmentService.GetByIdAsync(id);
 
-        if (record is null)
-            return NotFound();
-
-        return Ok(record);
+        return record is not null ? Ok(record) : NotFound();
     }
 
-    // POST: api/enrollments
+    // POST create
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateEnrollmentRequest request)
     {
@@ -46,7 +43,15 @@ public class EnrollmentsController : ControllerBase
             record
         );
     }
+
+    // DELETE
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id)
+    {
+        var deleted = await _enrollmentService.DeleteAsync(id);
+
+        return deleted ? NoContent() : NotFound();
+    }
 }
 
-// Request DTO
 public record CreateEnrollmentRequest(string StudentId, string CourseCode);
