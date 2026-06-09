@@ -29,6 +29,12 @@ builder.Services
     .ValidateOnStart();
 
 // =======================
+// PROBLEMD DETAILS (Exercise 6 - NEW)
+// =======================
+
+builder.Services.AddProblemDetails();
+
+// =======================
 // APP BUILD
 // =======================
 
@@ -41,8 +47,11 @@ var app = builder.Build();
 // Logging Middleware (Session 1)
 app.UseMiddleware<RequestLoggingMiddleware>();
 
-// Exception Handling
-app.UseExceptionHandler("/error");
+// Exception Handling (ProblemDetails)
+app.UseExceptionHandler();
+
+// Optional (recommended for consistent 404 JSON too)
+app.UseStatusCodePages();
 
 // Routing
 app.UseRouting();
@@ -71,5 +80,16 @@ app.MapGet("/api/assessments/results", () =>
 
 // Exercise 5 Controllers
 app.MapControllers();
+
+// =======================
+// TEST ERROR ROUTE (Exercise 6)
+// =======================
+
+app.MapGet("/api/error", () =>
+{
+    throw new TmsDatabaseException(
+        "Simulated database failure for ProblemDetails testing"
+    );
+});
 
 app.Run();
