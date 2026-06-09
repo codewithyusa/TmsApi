@@ -2,32 +2,47 @@ using Microsoft.AspNetCore.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// =======================
 // SERVICES
+// =======================
+
+// Auth
 builder.Services.AddAuthentication("Training")
     .AddScheme<AuthenticationSchemeOptions, TrainingAuthHandler>("Training", null);
 
 builder.Services.AddAuthorization();
 
+// DI (IMPORTANT FOR SESSION 2)
+builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
+
+// =======================
+// APP BUILD
+// =======================
 var app = builder.Build();
 
-// PIPELINE ORDER (IMPORTANT)
+// =======================
+// MIDDLEWARE PIPELINE
+// =======================
 
-// 1. Logging FIRST (outer wrapper)
+// 1. Custom logging (must be FIRST)
 app.UseMiddleware<RequestLoggingMiddleware>();
 
-// 2. Exception handler (optional but required by lab design)
+// 2. Exception handler (lab requirement)
 app.UseExceptionHandler("/error");
 
 // 3. Routing
 app.UseRouting();
 
-// 4. Authentication
+// 4. AuthN
 app.UseAuthentication();
 
-// 5. Authorization
+// 5. AuthZ
 app.UseAuthorization();
 
-// 6. Endpoint LAST
+// =======================
+// ENDPOINTS
+// =======================
+
 app.MapGet("/api/assessments/results", () =>
 {
     return Results.Ok(new

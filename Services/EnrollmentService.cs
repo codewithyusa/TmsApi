@@ -8,7 +8,6 @@ public interface IEnrollmentService
     Task<bool> DeleteAsync(string id);
 }
 
-// In-memory implementation
 public class EnrollmentService : IEnrollmentService
 {
     private readonly Dictionary<string, EnrollmentRecord> _store = new();
@@ -34,9 +33,7 @@ public class EnrollmentService : IEnrollmentService
 
         _logger.LogInformation(
             "Enrolled {StudentId} in {CourseCode} record {EnrollmentId}",
-            studentId,
-            courseCode,
-            id
+            studentId, courseCode, id
         );
 
         return Task.FromResult(record);
@@ -60,7 +57,6 @@ public class EnrollmentService : IEnrollmentService
     }
 }
 
-// Data model
 public record EnrollmentRecord(
     string Id,
     string StudentId,
