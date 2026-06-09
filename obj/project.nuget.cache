@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "DHNQ2NXg9EI=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\SPACE123\\Documents\\.net\\TmsApi\\TmsApi.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\SPACE123\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.8\\microsoft.aspnetcore.openapi.10.0.8.nupkg.sha512",
+    "C:\\Users\\SPACE123\\.nuget\\packages\\microsoft.openapi\\2.0.0\\microsoft.openapi.2.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
