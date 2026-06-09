@@ -12,8 +12,17 @@ builder.Services.AddAuthentication("Training")
 
 builder.Services.AddAuthorization();
 
-// DI (IMPORTANT FOR SESSION 2)
+// DI (Session 2)
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
+
+// =======================
+// OPTIONS (Exercise 3 - Payment Validation)
+// =======================
+builder.Services
+    .AddOptions<PaymentOptions>()
+    .BindConfiguration("Payments")
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 // =======================
 // APP BUILD
@@ -27,16 +36,16 @@ var app = builder.Build();
 // 1. Custom logging (must be FIRST)
 app.UseMiddleware<RequestLoggingMiddleware>();
 
-// 2. Exception handler (lab requirement)
+// 2. Exception handler
 app.UseExceptionHandler("/error");
 
 // 3. Routing
 app.UseRouting();
 
-// 4. AuthN
+// 4. Authentication
 app.UseAuthentication();
 
-// 5. AuthZ
+// 5. Authorization
 app.UseAuthorization();
 
 // =======================
