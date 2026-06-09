@@ -6,18 +6,22 @@ var builder = WebApplication.CreateBuilder(args);
 // SERVICES
 // =======================
 
-// Auth
+// Authentication
 builder.Services.AddAuthentication("Training")
     .AddScheme<AuthenticationSchemeOptions, TrainingAuthHandler>("Training", null);
 
 builder.Services.AddAuthorization();
 
-// DI (Session 2)
+// Controllers (Exercise 5)
+builder.Services.AddControllers();
+
+// Dependency Injection
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 
 // =======================
-// OPTIONS (Exercise 3 - Payment Validation)
+// OPTIONS (Exercise 3)
 // =======================
+
 builder.Services
     .AddOptions<PaymentOptions>()
     .BindConfiguration("Payments")
@@ -27,31 +31,33 @@ builder.Services
 // =======================
 // APP BUILD
 // =======================
+
 var app = builder.Build();
 
 // =======================
 // MIDDLEWARE PIPELINE
 // =======================
 
-// 1. Custom logging (must be FIRST)
+// Logging Middleware (Session 1)
 app.UseMiddleware<RequestLoggingMiddleware>();
 
-// 2. Exception handler
+// Exception Handling
 app.UseExceptionHandler("/error");
 
-// 3. Routing
+// Routing
 app.UseRouting();
 
-// 4. Authentication
+// Authentication
 app.UseAuthentication();
 
-// 5. Authorization
+// Authorization
 app.UseAuthorization();
 
 // =======================
 // ENDPOINTS
 // =======================
 
+// Exercise 1 protected endpoint
 app.MapGet("/api/assessments/results", () =>
 {
     return Results.Ok(new
@@ -62,5 +68,8 @@ app.MapGet("/api/assessments/results", () =>
     });
 })
 .RequireAuthorization();
+
+// Exercise 5 Controllers
+app.MapControllers();
 
 app.Run();
