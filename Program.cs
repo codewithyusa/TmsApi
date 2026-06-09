@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,10 +30,16 @@ builder.Services
     .ValidateOnStart();
 
 // =======================
-// PROBLEMD DETAILS (Exercise 6 - NEW)
+// PROBLEMD DETAILS (Exercise 6)
 // =======================
 
 builder.Services.AddProblemDetails();
+
+// =======================
+// OPENAPI (Exercise 7 - NEW)
+// =======================
+
+builder.Services.AddOpenApi();
 
 // =======================
 // APP BUILD
@@ -50,7 +57,7 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 // Exception Handling (ProblemDetails)
 app.UseExceptionHandler();
 
-// Optional (recommended for consistent 404 JSON too)
+// Optional: consistent 404 JSON
 app.UseStatusCodePages();
 
 // Routing
@@ -91,5 +98,19 @@ app.MapGet("/api/error", () =>
         "Simulated database failure for ProblemDetails testing"
     );
 });
+
+// =======================
+// ENVIRONMENT TOGGLE (Exercise 7)
+// =======================
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference();
+}
+else
+{
+    app.UseExceptionHandler();
+}
 
 app.Run();
