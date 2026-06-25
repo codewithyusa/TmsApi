@@ -57,4 +57,38 @@ public class RegistrarReportController : ControllerBase
 
         return Ok(list);
     }
+
+    //  Students with zero enrollments (NOT EXISTS)
+    [HttpGet("students-with-zero-enrollments-any")]
+    public async Task<IActionResult> GetStudentsWithZeroEnrollments_Any()
+    {
+        var list = await _context.Students
+            .Where(s => !s.Enrollments.Any())
+            .Select(s => s.Name)
+            .ToListAsync();
+
+        return Ok(list);
+    }
+
+    //  Students with zero enrollments (LEFT JOIN)
+    [HttpGet("students-with-zero-enrollments-leftjoin")]
+    public async Task<IActionResult> GetStudentsWithZeroEnrollments_LeftJoin()
+    {
+        var list = await _context.Students
+            .GroupJoin(
+                _context.Enrollments,
+                s => s.Id,
+                e => e.StudentId,
+                (s, e) => new { Student = s, Enrollments = e }
+            )
+            .SelectMany(
+                x => x.Enrollments.DefaultIfEmpty(),
+                (x, e) => new { x.Student, Enrollment = e }
+            )
+            .Where(x => x.Enrollment == null)
+            .Select(x => x.Student.Name)
+            .ToListAsync();
+
+        return Ok(list);
+    }
 }
