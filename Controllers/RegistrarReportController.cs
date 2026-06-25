@@ -15,13 +15,30 @@ public class RegistrarReportController : ControllerBase
         _context = context;
     }
 
-    [HttpGet("active-students-count")]
-    public async Task<IActionResult> GetActiveStudentsCount()
+    // 1. Active students with GPA >= 3.0
+    [HttpGet("active-high-gpa-count")]
+    public async Task<IActionResult> GetActiveHighGpaCount()
     {
         var count = await _context.Students
             .Where(s => s.IsActive && s.GPA >= 3.0m)
             .CountAsync();
 
         return Ok(count);
+    }
+
+    // 2. Courses sorted by enrollment count
+    [HttpGet("courses-by-enrollment")]
+    public async Task<IActionResult> GetCoursesByEnrollment()
+    {
+        var list = await _context.Courses
+            .Select(c => new
+            {
+                c.Title,
+                EnrollmentCount = c.Enrollments.Count()
+            })
+            .OrderByDescending(x => x.EnrollmentCount)
+            .ToListAsync();
+
+        return Ok(list);
     }
 }
