@@ -15,23 +15,33 @@ public class TestController : ControllerBase
         _context = context;
     }
 
-    [HttpGet("deferred")]
-    public IActionResult TestDeferred()
+    // Non-translatable helper method
+    private static bool IsHonorRoll(decimal gpa)
     {
-        Console.WriteLine("\n>>> STEP 1: Building the query object (no database contact)...");
+        return gpa >= 3.5m;
+    }
 
-        var query = _context.Students.Where(s => s.GPA >= 3.0m);
+    [HttpGet("translation-fail")]
+    public IActionResult TestTranslationFail()
+    {
+        Console.WriteLine("\n>>> STEP 1: Running non-translatable query...");
 
-        Console.WriteLine(">>> STEP 2: Appending a sorting clause...");
+        try
+        {
+            var students = _context.Students
+                .Where(s => IsHonorRoll(s.GPA)) // ❌ cannot be translated to SQL
+                .ToList();
 
-        var orderedQuery = query.OrderBy(s => s.Name);
+            return Ok(students);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($">>> EXCEPTION CAUGHT: {ex.Message}\n");
 
-        Console.WriteLine(">>> STEP 3: Materializing query into a C# List...");
-
-        var results = orderedQuery.ToList(); // SQL executes HERE
-
-        Console.WriteLine(">>> STEP 4: Materialization finished. List populated.\n");
-
-        return Ok(results);
+            return BadRequest(new
+            {
+                Message = ex.Message
+            });
+        }
     }
 }
