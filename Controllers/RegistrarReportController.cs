@@ -41,4 +41,20 @@ public class RegistrarReportController : ControllerBase
 
         return Ok(list);
     }
+
+    // 3. Average GPA per course
+    [HttpGet("average-gpa-per-course")]
+    public async Task<IActionResult> GetAverageGpaPerCourse()
+    {
+        var list = await _context.Enrollments
+            .GroupBy(e => e.Course.Title)
+            .Select(g => new
+            {
+                Course = g.Key,
+                AverageGPA = g.Average(e => e.Student.GPA)
+            })
+            .ToListAsync();
+
+        return Ok(list);
+    }
 }
