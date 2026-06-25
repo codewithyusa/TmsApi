@@ -32,3 +32,4 @@ C:\Users\SPACE123\Documents\.net\TmsApi\obj\Debug\net10.0\refint\TmsApi.dll
 C:\Users\SPACE123\Documents\.net\TmsApi\obj\Debug\net10.0\TmsApi.pdb
 C:\Users\SPACE123\Documents\.net\TmsApi\obj\Debug\net10.0\TmsApi.genruntimeconfig.cache
 C:\Users\SPACE123\Documents\.net\TmsApi\obj\Debug\net10.0\ref\TmsApi.dll
+C:\Users\SPACE123\Documents\.net\TmsApi\bin\Debug\net10.0\Scalar.AspNetCore.dll
