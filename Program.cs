@@ -15,8 +15,10 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 
 builder.Services.AddDbContext<TmsDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("TmsDatabase")));
-
+    options.UseNpgsql(builder.Configuration.GetConnectionString("TmsDatabase"))
+        .LogTo(Console.WriteLine, LogLevel.Information) 
+        .EnableSensitiveDataLogging() 
+);
 
 builder.Services
     .AddOptions<PaymentOptions>()
