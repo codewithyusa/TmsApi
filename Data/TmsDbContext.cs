@@ -24,14 +24,43 @@ public class TmsDbContext : DbContext
             .HasOne(e => e.Student)
             .WithMany(s => s.Enrollments)
             .HasForeignKey(e => e.StudentId)
-            // Prevent deleting a student while enrollments exist.
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<Enrollment>()
             .HasOne(e => e.Course)
             .WithMany(c => c.Enrollments)
             .HasForeignKey(e => e.CourseId)
-            // Prevent deleting a course while enrollments exist.
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Student>()
+            .Property<DateTime>("LastUpdated");
+
+        modelBuilder.Entity<Student>()
+            .Property(s => s.Version)
+            .IsRowVersion();
+    }
+    public override int SaveChanges()
+    {
+        UpdateAudit();
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        UpdateAudit();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void UpdateAudit()
+    {
+        var entries = ChangeTracker.Entries<Student>();
+
+        foreach (var entry in entries)
+        {
+            if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+            {
+                entry.Property("LastUpdated").CurrentValue = DateTime.UtcNow;
+            }
+        }
     }
 }

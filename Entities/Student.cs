@@ -16,4 +16,6 @@ public class Student
 
     // Navigation property (one-to-many / many-to-many support)
     public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+
+    public uint Version { get; set; }
 }
