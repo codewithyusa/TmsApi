@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Data;
-using System.Linq;
+
 
 namespace TmsApi.Controllers;
 
@@ -15,28 +15,25 @@ public class TestController : ControllerBase
     {
         _context = context;
     }
+
     private static bool IsHonorRoll(decimal gpa)
     {
         return gpa >= 3.5m;
     }
 
     [HttpGet("translation-fail")]
-    public IActionResult TestTranslationFail()
+    public IActionResult TranslationFail()
     {
-        Console.WriteLine("\n>>> STEP 1: Running non-translatable query...");
-
         try
         {
             var students = _context.Students
-                .Where(s => IsHonorRoll(s.GPA)) // ❌ cannot be translated to SQL
+                .Where(s => IsHonorRoll(s.GPA)) // ❌ cannot be translated
                 .ToList();
 
             return Ok(students);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($">>> EXCEPTION CAUGHT: {ex.Message}\n");
-
             return BadRequest(new
             {
                 Message = ex.Message
@@ -60,6 +57,26 @@ public class TestController : ControllerBase
             Console.WriteLine($"{s.Name}: {count} enrollments");
         }
 
-        return Ok("Check console logs for N+1 queries");
+        return Ok("N+1 executed. Check console logs.");
+    }
+
+    [HttpGet("n1-fixed")]
+    public async Task<IActionResult> N1Fixed(CancellationToken cancellationToken)
+    {
+        var report = await _context.Students
+            .AsNoTracking()
+            .Select(s => new
+            {
+                s.Name,
+                EnrollmentCount = s.Enrollments.Count
+            })
+            .ToListAsync(cancellationToken);
+
+        foreach (var r in report)
+        {
+            Console.WriteLine($"{r.Name}: {r.EnrollmentCount} enrollments");
+        }
+
+        return Ok(report);
     }
 }
