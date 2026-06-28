@@ -10,9 +10,10 @@ public class Enrollment
     public int CourseId { get; set; }
 
     public decimal? Grade { get; set; }
-    // Nullable: student may not have a grade yet
 
     public DateTime EnrolledAt { get; set; } = DateTime.UtcNow;
+
+    public bool IsArchived { get; set; }
 
     // Navigation properties
     public Student Student { get; set; } = null!;
