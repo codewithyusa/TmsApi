@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TmsApi.Data;
 using System.Linq;
 
@@ -14,8 +15,6 @@ public class TestController : ControllerBase
     {
         _context = context;
     }
-
-    // Non-translatable helper method
     private static bool IsHonorRoll(decimal gpa)
     {
         return gpa >= 3.5m;
@@ -43,5 +42,24 @@ public class TestController : ControllerBase
                 Message = ex.Message
             });
         }
+    }
+
+    [HttpGet("n1-demo")]
+    public async Task<IActionResult> N1Demo(CancellationToken cancellationToken)
+    {
+        var students = await _context.Students
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        foreach (var s in students)
+        {
+            var count = await _context.Enrollments
+                .AsNoTracking()
+                .CountAsync(e => e.StudentId == s.Id, cancellationToken);
+
+            Console.WriteLine($"{s.Name}: {count} enrollments");
+        }
+
+        return Ok("Check console logs for N+1 queries");
     }
 }
