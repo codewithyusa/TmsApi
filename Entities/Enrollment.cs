@@ -1,5 +1,3 @@
-using System;
-
 namespace TmsApi.Entities;
 
 public class Enrollment
@@ -13,9 +11,8 @@ public class Enrollment
 
     public DateTime EnrolledAt { get; set; } = DateTime.UtcNow;
 
-    public bool IsArchived { get; set; }
+    public bool IsArchived { get; set; } = false;
 
-    // Navigation properties
     public Student Student { get; set; } = null!;
     public Course Course { get; set; } = null!;
 }

@@ -20,25 +20,34 @@ public class TmsDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // Enrollment -> Student
         modelBuilder.Entity<Enrollment>()
             .HasOne(e => e.Student)
             .WithMany(s => s.Enrollments)
             .HasForeignKey(e => e.StudentId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Enrollment -> Course
         modelBuilder.Entity<Enrollment>()
             .HasOne(e => e.Course)
             .WithMany(c => c.Enrollments)
             .HasForeignKey(e => e.CourseId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Shadow audit property
         modelBuilder.Entity<Student>()
             .Property<DateTime>("LastUpdated");
 
+        // Concurrency token
         modelBuilder.Entity<Student>()
             .Property(s => s.Version)
             .IsRowVersion();
+
+        // Soft-delete filter
+        modelBuilder.Entity<Student>()
+            .HasQueryFilter(s => !s.IsDeleted);
     }
+
     public override int SaveChanges()
     {
         UpdateAudit();
@@ -53,11 +62,10 @@ public class TmsDbContext : DbContext
 
     private void UpdateAudit()
     {
-        var entries = ChangeTracker.Entries<Student>();
-
-        foreach (var entry in entries)
+        foreach (var entry in ChangeTracker.Entries<Student>())
         {
-            if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+            if (entry.State == EntityState.Added ||
+                entry.State == EntityState.Modified)
             {
                 entry.Property("LastUpdated").CurrentValue = DateTime.UtcNow;
             }
