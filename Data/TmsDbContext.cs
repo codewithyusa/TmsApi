@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using TmsApi.Entities;
 
 namespace TmsApi.Data;
@@ -45,7 +48,7 @@ public class TmsDbContext : DbContext
 
         // Soft-delete filter
         modelBuilder.Entity<Student>()
-           .HasQueryFilter(s => !s.IsDeleted);
+            .HasQueryFilter(s => !s.IsDeleted);
     }
 
     public override int SaveChanges()

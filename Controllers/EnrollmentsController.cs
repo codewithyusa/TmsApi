@@ -1,7 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Threading;
+using System.Threading.Tasks;
+using TmsApi.Services;
+using TmsApi.Dtos;
+
+namespace TmsApi.Controllers;
 
 [ApiController]
-[Route("api/enrollments")]
+[Route("api/courses/{courseId}/enrollments")]
 public class EnrollmentsController : ControllerBase
 {
     private readonly IEnrollmentService _enrollmentService;
@@ -11,47 +17,31 @@ public class EnrollmentsController : ControllerBase
         _enrollmentService = enrollmentService;
     }
 
-    // GET all
-    [HttpGet]
-    public async Task<IActionResult> GetAll()
-    {
-        var enrollments = await _enrollmentService.GetAllAsync();
-        return Ok(enrollments);
-    }
-
     // GET by id
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(string id)
+    public async Task<IActionResult> GetById(
+        int courseId,
+        int id,
+        CancellationToken ct)
     {
-        var record = await _enrollmentService.GetByIdAsync(id);
+        var record = await _enrollmentService.GetByIdAsync(courseId, id, ct);
 
         return record is not null ? Ok(record) : NotFound();
     }
 
     // POST create
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateEnrollmentRequest request)
+    public async Task<IActionResult> Create(
+        int courseId,
+        [FromBody] EnrollStudentRequest request,
+        CancellationToken ct)
     {
-        var record = await _enrollmentService.EnrollAsync(
-            request.StudentId,
-            request.CourseCode
-        );
+        var record = await _enrollmentService.CreateAsync(courseId, request, ct);
 
         return CreatedAtAction(
             nameof(GetById),
-            new { id = record.Id },
+            new { courseId, id = record.Id },
             record
         );
     }
-
-    // DELETE
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(string id)
-    {
-        var deleted = await _enrollmentService.DeleteAsync(id);
-
-        return deleted ? NoContent() : NotFound();
-    }
 }
-
-public record CreateEnrollmentRequest(string StudentId, string CourseCode);

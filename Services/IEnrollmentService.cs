@@ -1,14 +1,18 @@
-using Tms.Api.Dtos;
+using System.Threading;
+using System.Threading.Tasks;
+using TmsApi.Dtos;
 
-namespace Tms.Api.Services;
+namespace TmsApi.Services;
 
 public interface IEnrollmentService
 {
-    Task<EnrollmentResponseDto?> GetByIdAsync(int courseId, int id, CancellationToken ct);
+    Task<EnrollmentResponseDto?> GetByIdAsync(
+        int courseId,
+        int id,
+        CancellationToken ct);
 
     Task<EnrollmentResponseDto> CreateAsync(
         int courseId,
         EnrollStudentRequest request,
-        CancellationToken ct
-    );
+        CancellationToken ct);
 }
