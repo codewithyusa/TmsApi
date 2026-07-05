@@ -13,10 +13,9 @@ public class CoursesController(ICourseService courseService) : ControllerBase
     {
         var course = await courseService.GetByIdAsync(id, ct);
 
-        if (course is null)
-            return NotFound();
-
-        return Ok(course);
+        return course is not null
+            ? Ok(course)
+            : NotFound();
     }
 
     [HttpPost]
