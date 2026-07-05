@@ -17,8 +17,6 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 
-
-
 builder.Services.AddDbContext<TmsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("TmsDatabase"))
         .LogTo(Console.WriteLine, LogLevel.Information)
@@ -73,13 +71,20 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
+
+    // ✅ ADDED SEEDER HERE (ONLY ADDITION)
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<TmsDbContext>();
+
+        await TmsApi.Persistence.DataSeeder.SeedAsync(context);
+    }
 }
 else
 {
     app.UseExceptionHandler();
     app.UseStatusCodePages();
 }
-
 
 using (var scope = app.Services.CreateScope())
 {
