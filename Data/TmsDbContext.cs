@@ -44,8 +44,8 @@ public class TmsDbContext : DbContext
             .IsRowVersion();
 
         // Soft-delete filter
-       // modelBuilder.Entity<Student>()
-         //   .HasQueryFilter(s => !s.IsDeleted);
+        modelBuilder.Entity<Student>()
+           .HasQueryFilter(s => !s.IsDeleted);
     }
 
     public override int SaveChanges()
