@@ -1,47 +1,59 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Threading;
 using System.Threading.Tasks;
-using TmsApi.Services;
 using TmsApi.Dtos;
+using TmsApi.Services;
 
 namespace TmsApi.Controllers;
 
 [ApiController]
-[Route("api/courses/{courseId}/enrollments")]
-public class EnrollmentsController : ControllerBase
+[Route("api/courses/{courseId:int}/enrollments")]
+public class EnrollmentsController(
+    ICourseService courseService,
+    IEnrollmentService enrollmentService
+) : ControllerBase
 {
-    private readonly IEnrollmentService _enrollmentService;
-
-    public EnrollmentsController(IEnrollmentService enrollmentService)
-    {
-        _enrollmentService = enrollmentService;
-    }
-
-    // GET by id
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(
+    [HttpGet("{id:int}", Name = nameof(GetEnrollment))]
+    public async Task<IActionResult> GetEnrollment(
         int courseId,
         int id,
         CancellationToken ct)
     {
-        var record = await _enrollmentService.GetByIdAsync(courseId, id, ct);
+        var enrollment = await enrollmentService.GetByIdAsync(courseId, id, ct);
 
-        return record is not null ? Ok(record) : NotFound();
+        return enrollment is not null ? Ok(enrollment) : NotFound();
     }
 
-    // POST create
     [HttpPost]
-    public async Task<IActionResult> Create(
+    public async Task<IActionResult> EnrollStudent(
         int courseId,
         [FromBody] EnrollStudentRequest request,
         CancellationToken ct)
     {
-        var record = await _enrollmentService.CreateAsync(courseId, request, ct);
+        // 1. Look up parent course
+        var course = await courseService.GetByIdAsync(courseId, ct);
+
+        if (course is null)
+            return NotFound();
+
+        // 2. Capacity check (409 AFTER 404 as required)
+        if (course.EnrollmentCount >= course.MaxCapacity)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Course is full",
+                Detail = $"Course '{course.Title}' has reached its maximum capacity of {course.MaxCapacity}.",
+                Status = StatusCodes.Status409Conflict
+            });
+        }
+
+        // 3. Create enrollment
+        var enrollment = await enrollmentService.CreateAsync(courseId, request, ct);
 
         return CreatedAtAction(
-            nameof(GetById),
-            new { courseId, id = record.Id },
-            record
+            nameof(GetEnrollment),
+            new { courseId, id = enrollment.Id },
+            enrollment
         );
     }
 }
