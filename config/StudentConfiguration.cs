@@ -32,15 +32,7 @@ namespace TmsApi.Data.Configurations
                    .WithOne(e => e.Student)
                    .HasForeignKey(e => e.StudentId)
                    .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasMany(s => s.Certificates)
-                   .WithOne(c => c.Student)
-                   .HasForeignKey(c => c.StudentId)
-                   .OnDelete(DeleteBehavior.Restrict);
-
-            builder.Property(s => s.RowVersion)
-                    .IsRowVersion();
-
+                   
            builder.Property(s => s.IsDeleted)
                   .HasDefaultValue(false);
 

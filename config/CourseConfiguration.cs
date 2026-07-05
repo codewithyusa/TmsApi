@@ -28,16 +28,6 @@ namespace TmsApi.Data.Configurations
                    .WithOne(e => e.Course)
                    .HasForeignKey(e => e.CourseId)
                    .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasMany(c => c.Assessments)
-                   .WithOne(a => a.Course)
-                   .HasForeignKey(a => a.CourseId)
-                   .OnDelete(DeleteBehavior.Cascade);
-
-            builder.HasMany(c => c.Certificates)
-                   .WithOne(cert => cert.Course)
-                   .HasForeignKey(cert => cert.CourseId)
-                   .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }
