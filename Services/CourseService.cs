@@ -34,6 +34,7 @@ public class CourseService(
         };
 
         context.Courses.Add(course);
+
         await context.SaveChangesAsync(ct);
 
         logger.LogInformation(
