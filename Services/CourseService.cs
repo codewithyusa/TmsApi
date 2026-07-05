@@ -21,7 +21,7 @@ public class CourseService(
                 c.MaxCapacity,
                 c.Enrollments.Count))
             .FirstOrDefaultAsync(ct);
-            
+
     public Task<bool> CodeExistsAsync(string code, CancellationToken ct) =>
         context.Courses
             .AsNoTracking()
@@ -31,7 +31,6 @@ public class CourseService(
         CreateCourseRequest request,
         CancellationToken ct)
     {
-        // ✅ BUSINESS RULE CHECK (prevents DB crash)
         if (await CodeExistsAsync(request.Code, ct))
         {
             throw new InvalidOperationException(
@@ -54,7 +53,61 @@ public class CourseService(
             course.Id,
             course.Code);
 
-        // reuse projection (clean + consistent DTO output)
         return (await GetByIdAsync(course.Id, ct))!;
+    }
+
+    // ✅ FIX: REQUIRED BY INTERFACE (THIS WAS MISSING)
+    public async Task<PagedResponse<CourseResponseDto>> GetCoursesAsync(
+        PagedRequest request,
+        CancellationToken ct)
+    {
+        var query = context.Courses.AsNoTracking();
+
+        // SEARCH
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            query = query.Where(c =>
+                c.Title.Contains(request.Search) ||
+                c.Code.Contains(request.Search));
+        }
+
+        // COUNT BEFORE PAGING
+        var totalCount = await query.CountAsync(ct);
+
+        // SAFE ORDERING (whitelist)
+        query = request.OrderBy.ToLower() switch
+        {
+            "code" => request.Descending
+                ? query.OrderByDescending(c => c.Code)
+                : query.OrderBy(c => c.Code),
+
+            "title" => request.Descending
+                ? query.OrderByDescending(c => c.Title)
+                : query.OrderBy(c => c.Title),
+
+            _ => request.Descending
+                ? query.OrderByDescending(c => c.Id)
+                : query.OrderBy(c => c.Id)
+        };
+
+        // PAGING
+        var items = await query
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(c => new CourseResponseDto(
+                c.Id,
+                c.Code,
+                c.Title,
+                c.MaxCapacity,
+                c.Enrollments.Count))
+            .ToListAsync(ct);
+
+        return new PagedResponse<CourseResponseDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = request.Page,
+            PageSize = request.PageSize
+        };
     }
 }
