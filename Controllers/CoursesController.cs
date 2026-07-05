@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using TmsApi.Entities;
+using TmsApi.Dtos;
 using TmsApi.Services;
 
 namespace TmsApi.Controllers;
@@ -20,9 +20,11 @@ public class CoursesController(ICourseService courseService) : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateCourse(Course course, CancellationToken ct)
+    public async Task<IActionResult> CreateCourse(
+        CreateCourseRequest request,
+        CancellationToken ct)
     {
-        var result = await courseService.CreateAsync(course, ct);
+        var result = await courseService.CreateAsync(request, ct);
 
         return CreatedAtAction(
             nameof(GetCourseById),
