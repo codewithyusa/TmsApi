@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using TmsApi.Dtos;
 using TmsApi.Services;
 
@@ -15,9 +16,53 @@ public class CoursesController(
     {
         var course = await courseService.GetByIdAsync(id, ct);
 
-        return course is not null
-            ? Ok(course)
-            : NotFound();
+        if (course is null)
+            return NotFound();
+
+        var courseUrl = linkGenerator.GetPathByName(
+            HttpContext,
+            nameof(GetCourseById),
+            new { id });
+
+        if (courseUrl is null)
+            throw new InvalidOperationException("Course route could not be generated.");
+
+        var enrollmentsUrl = linkGenerator.GetPathByAction(
+            HttpContext,
+            action: "GetEnrollments",
+            controller: "Enrollments",
+            values: new { courseId = id });
+
+        if (enrollmentsUrl is null)
+            throw new InvalidOperationException("Enrollment route could not be generated.");
+
+        var links = new List<LinkDto>
+        {
+            new(courseUrl, "self", "GET"),
+            new(courseUrl, "update", "PUT"),
+            new(courseUrl, "delete", "DELETE"),
+            new(enrollmentsUrl, "enrollments", "GET")
+        };
+
+        if (course.EnrollmentCount < course.MaxCapacity)
+        {
+            links.Add(new LinkDto(
+                enrollmentsUrl,
+                "enroll",
+                "POST"));
+        }
+
+        var detailDto = new CourseDetailDto
+        {
+            Id = course.Id,
+            Code = course.Code,
+            Title = course.Title,
+            MaxCapacity = course.MaxCapacity,
+            EnrollmentCount = course.EnrollmentCount,
+            Links = links
+        };
+
+        return Ok(detailDto);
     }
 
     [HttpGet]
@@ -30,7 +75,9 @@ public class CoursesController(
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateCourse(CreateCourseRequest request, CancellationToken ct)
+    public async Task<IActionResult> CreateCourse(
+        CreateCourseRequest request,
+        CancellationToken ct)
     {
         if (await courseService.CodeExistsAsync(request.Code, ct))
         {
