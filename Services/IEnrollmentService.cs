@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using TmsApi.Dtos;
@@ -14,5 +15,9 @@ public interface IEnrollmentService
     Task<EnrollmentResponseDto> CreateAsync(
         int courseId,
         EnrollStudentRequest request,
+        CancellationToken ct);
+
+    Task<List<EnrollmentResponseDto>> GetByCourseAsync(
+        int courseId,
         CancellationToken ct);
 }

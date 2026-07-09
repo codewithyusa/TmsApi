@@ -13,6 +13,21 @@ public class EnrollmentsController(
     IEnrollmentService enrollmentService
 ) : ControllerBase
 {
+    [HttpGet(Name = "ListCourseEnrollments")]
+    public async Task<IActionResult> GetEnrollments(
+        int courseId,
+        CancellationToken ct)
+    {
+        var course = await courseService.GetByIdAsync(courseId, ct);
+
+        if (course is null)
+            return NotFound();
+
+        var enrollments = await enrollmentService.GetByCourseAsync(courseId, ct);
+
+        return Ok(enrollments);
+    }
+
     [HttpGet("{id:int}", Name = nameof(GetEnrollment))]
     public async Task<IActionResult> GetEnrollment(
         int courseId,
@@ -21,7 +36,9 @@ public class EnrollmentsController(
     {
         var enrollment = await enrollmentService.GetByIdAsync(courseId, id, ct);
 
-        return enrollment is not null ? Ok(enrollment) : NotFound();
+        return enrollment is not null
+            ? Ok(enrollment)
+            : NotFound();
     }
 
     [HttpPost]
@@ -30,13 +47,11 @@ public class EnrollmentsController(
         [FromBody] EnrollStudentRequest request,
         CancellationToken ct)
     {
-        // 1. Look up parent course
         var course = await courseService.GetByIdAsync(courseId, ct);
 
         if (course is null)
             return NotFound();
 
-        // 2. Capacity check (409 AFTER 404 as required)
         if (course.EnrollmentCount >= course.MaxCapacity)
         {
             return Conflict(new ProblemDetails
@@ -47,7 +62,6 @@ public class EnrollmentsController(
             });
         }
 
-        // 3. Create enrollment
         var enrollment = await enrollmentService.CreateAsync(courseId, request, ct);
 
         return CreatedAtAction(

@@ -1,12 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using TmsApi.Data;
 using TmsApi.Entities;
 using TmsApi.Dtos;
-using TmsApi.Services;
 
 namespace TmsApi.Services;
 
@@ -28,6 +29,21 @@ public class EnrollmentService(
                 e.StudentId,
                 e.EnrolledAt))
             .FirstOrDefaultAsync(ct);
+
+    public async Task<List<EnrollmentResponseDto>> GetByCourseAsync(
+        int courseId,
+        CancellationToken ct)
+    {
+        return await context.Enrollments
+            .AsNoTracking()
+            .Where(e => e.CourseId == courseId)
+            .Select(e => new EnrollmentResponseDto(
+                e.Id,
+                e.CourseId,
+                e.StudentId,
+                e.EnrolledAt))
+            .ToListAsync(ct);
+    }
 
     public async Task<EnrollmentResponseDto> CreateAsync(
         int courseId,
