@@ -6,7 +6,9 @@ namespace TmsApi.Controllers;
 
 [ApiController]
 [Route("api/courses")]
-public class CoursesController(ICourseService courseService) : ControllerBase
+public class CoursesController(
+    ICourseService courseService,
+    LinkGenerator linkGenerator) : ControllerBase
 {
     [HttpGet("{id:int}", Name = nameof(GetCourseById))]
     public async Task<IActionResult> GetCourseById(int id, CancellationToken ct)
