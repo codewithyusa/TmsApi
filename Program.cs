@@ -4,7 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Asp.Versioning;
 using TmsApi.Data;
 using TmsApi.Entities;
-using TmsApi.Services;;
+using TmsApi.Services;
+using TmsApi.Middleware;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,6 +62,8 @@ app.UseRouting();
 app.UseAuthentication();
 
 app.UseAuthorization();
+
+app.UseMiddleware<V1DeprecationMiddleware>();
 
 app.MapGet("/api/assessments/results", () =>
 {
