@@ -58,3 +58,11 @@ For example, migration directly from V1 to V3 is allowed if V3 is the current su
 ## Ownership
 
 API changes must be reviewed against this policy before release. Every proposed change must clearly identify whether it is breaking or additive and whether a new version is required.
+
+## Header-Based Versioning
+
+Header-based versioning using `X-Api-Version` is supported as a partner-specific opt-in.
+
+The default API versioning strategy remains URL segments because URLs make the active version visible during debugging, monitoring, and incident response.
+
+Partners that cannot change cached URLs or CDN paths may request header-based versioning. The migration approach is agreed individually with each partner.
