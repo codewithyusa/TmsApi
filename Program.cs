@@ -86,7 +86,6 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.MapScalarApiReference();
 
-    // ✅ ADDED SEEDER HERE (ONLY ADDITION)
     using (var scope = app.Services.CreateScope())
     {
         var context = scope.ServiceProvider.GetRequiredService<TmsDbContext>();
