@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication;
 using Scalar.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using Asp.Versioning;
+using FluentValidation;
 using TmsApi.Data;
 using TmsApi.Entities;
 using TmsApi.Services;
@@ -12,7 +13,6 @@ using TmsApi.Api.ExceptionHandlers;
 using TmsApi.Application.Enrollments.Commands;
 using TmsApi.Persistence.Repositories;
 using TmsApi.Application.Interfaces;
-
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -53,6 +53,8 @@ builder.Services.AddMediatR(cfg =>
     cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
     cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
 });
+
+builder.Services.AddValidatorsFromAssembly(typeof(EnrollStudentValidator).Assembly);
 
 builder.Services.AddDbContext<TmsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("TmsDatabase"))
