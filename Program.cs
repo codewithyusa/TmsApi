@@ -10,6 +10,9 @@ using MediatR;
 using TmsApi.Application.Behaviors;
 using TmsApi.Api.ExceptionHandlers;
 using TmsApi.Application.Enrollments.Commands;
+using TmsApi.Persistence.Repositories;
+using TmsApi.Application.Interfaces;
+
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,6 +42,9 @@ builder.Services.AddApiVersioning(options =>
 
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
+
+builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
+builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 
 builder.Services.AddMediatR(cfg =>
 {
