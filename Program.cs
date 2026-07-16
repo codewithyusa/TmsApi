@@ -6,6 +6,10 @@ using TmsApi.Data;
 using TmsApi.Entities;
 using TmsApi.Services;
 using TmsApi.Middleware;
+using MediatR;
+using TmsApi.Application.Behaviors;
+using TmsApi.Api.ExceptionHandlers;
+using TmsApi.Application.Enrollments.Commands;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,6 +40,14 @@ builder.Services.AddApiVersioning(options =>
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssembly(typeof(EnrollStudentCommand).Assembly);
+
+    cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+    cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+});
+
 builder.Services.AddDbContext<TmsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("TmsDatabase"))
         .LogTo(Console.WriteLine, LogLevel.Information)
@@ -49,6 +61,8 @@ builder.Services
     .ValidateOnStart();
 
 builder.Services.AddProblemDetails();
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddOpenApi();
 
