@@ -1,4 +1,4 @@
-using TmsApi.Entities;
+using TmsApi.Domain.Entities;
 
 namespace TmsApi.Application.Interfaces;
 
