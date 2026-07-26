@@ -1,4 +1,8 @@
 using System.Threading.Channels;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
 using TmsApi.Application.Transcripts;
 using TmsApi.Infrastructure.Transcripts;
 
@@ -32,10 +36,7 @@ public class TranscriptWorker(
 
                 using var scope = scopeFactory.CreateScope();
 
-                // Production:
-                // - Load student data
-                // - Generate PDF
-                // - Save to blob storage
+                // Simulate transcript generation
                 await Task.Delay(
                     TimeSpan.FromSeconds(5),
                     ct);
