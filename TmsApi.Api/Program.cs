@@ -43,23 +43,14 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 
 
-
 //
 // Hybrid Cache
 //
-builder.Services.AddHybridCache(options =>
-{
-    options.DefaultEntryOptions = new HybridCacheEntryOptions
-    {
-        Expiration = TimeSpan.FromMinutes(10),
-        LocalCacheExpiration = TimeSpan.FromMinutes(2)
-    };
-});
-
+builder.Services.AddHybridCache();
 
 
 //
-// Tier-aware Rate Limiting
+// Tier-aware Rate Limiting + Transcript Concurrency Limiter
 //
 builder.Services.AddRateLimiter(options =>
 {
@@ -117,6 +108,21 @@ builder.Services.AddRateLimiter(options =>
             });
 
 
+    //
+    // Exercise 3:
+    // Expensive transcript endpoint concurrency control
+    //
+    options.AddConcurrencyLimiter(
+        "transcripts",
+        opt =>
+        {
+            opt.PermitLimit = 5;
+            opt.QueueLimit = 20;
+            opt.QueueProcessingOrder =
+                QueueProcessingOrder.OldestFirst;
+        });
+
+
     options.RejectionStatusCode =
         StatusCodes.Status429TooManyRequests;
 
@@ -159,7 +165,6 @@ builder.Services.AddRateLimiter(options =>
 });
 
 
-
 //
 // API Versioning
 //
@@ -180,7 +185,6 @@ builder.Services.AddApiVersioning(options =>
 });
 
 
-
 //
 // Services
 //
@@ -193,7 +197,6 @@ builder.Services.AddScoped<ICachedCourseService, CachedCourseService>();
 builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
 
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
-
 
 
 //
@@ -210,10 +213,8 @@ builder.Services.AddMediatR(cfg =>
 });
 
 
-
 builder.Services.AddValidatorsFromAssembly(
     typeof(EnrollStudentValidator).Assembly);
-
 
 
 //
@@ -260,7 +261,7 @@ app.UseStatusCodePages();
 app.UseRouting();
 
 
-// RATE LIMITER MUST BE HERE
+// Rate limiter must be after routing
 app.UseRateLimiter();
 
 
@@ -270,7 +271,6 @@ app.UseAuthorization();
 
 
 app.UseMiddleware<V1DeprecationMiddleware>();
-
 
 
 app.MapGet("/api/assessments/results", () =>
@@ -305,14 +305,13 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 
 
-    using (var scope = app.Services.CreateScope())
-    {
-        var context =
-            scope.ServiceProvider
-            .GetRequiredService<TmsDbContext>();
+    using var scope = app.Services.CreateScope();
 
-        await DataSeeder.SeedAsync(context);
-    }
+    var context =
+        scope.ServiceProvider
+        .GetRequiredService<TmsDbContext>();
+
+    await DataSeeder.SeedAsync(context);
 }
 else
 {
@@ -377,7 +376,6 @@ using (var scope = app.Services.CreateScope())
 
 
         context.Courses.AddRange(courses);
-
 
         context.SaveChanges();
     }
