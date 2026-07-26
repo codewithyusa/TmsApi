@@ -16,6 +16,7 @@ using TmsApi.Api.Options;
 using TmsApi.Api.Middleware;
 using TmsApi.Api.ExceptionHandlers;
 using TmsApi.Api.RateLimiting;
+using TmsApi.Api.Hubs;
 
 using TmsApi.Infrastructure.Services;
 using TmsApi.Infrastructure.Persistence;
@@ -28,7 +29,7 @@ using TmsApi.Domain.Entities;
 using TmsApi.Application.Interfaces;
 using TmsApi.Application.Behaviors;
 using TmsApi.Application.Enrollments.Commands;
-using TmsApi.Application.Transcripts;;
+using TmsApi.Application.Transcripts;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,8 +40,10 @@ builder.Services.AddAuthentication("Training")
         null);
 
 builder.Services.AddAuthorization();
-
 builder.Services.AddControllers();
+
+builder.Services.AddSignalR();
+
 
 // Hybrid Cache
 builder.Services.AddHybridCache();
@@ -293,6 +296,8 @@ app.MapGet("/api/assessments/results", () =>
 .RequireAuthorization();
 
 app.MapControllers();
+
+app.MapHub<TmsHub>("/hubs/tms");
 
 app.MapGet("/api/error", () =>
 {
