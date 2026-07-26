@@ -15,6 +15,7 @@ using TmsApi.Application.Behaviors;
 using TmsApi.Api.ExceptionHandlers;
 using TmsApi.Application.Enrollments.Commands;
 using TmsApi.Infrastructure.Persistence.Repositories;
+using Microsoft.Extensions.Caching.Hybrid;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,6 +26,15 @@ builder.Services.AddAuthentication("Training")
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
+
+builder.Services.AddHybridCache(options =>
+{
+    options.DefaultEntryOptions = new HybridCacheEntryOptions
+    {
+        Expiration = TimeSpan.FromMinutes(10),
+        LocalCacheExpiration = TimeSpan.FromMinutes(2)
+    };
+});
 
 builder.Services.AddApiVersioning(options =>
 {
