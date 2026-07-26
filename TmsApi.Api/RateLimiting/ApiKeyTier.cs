@@ -25,10 +25,11 @@ public static class ApiKeyResolver
             .ToString();
 
 
-        // No API key
-        if (string.IsNullOrEmpty(key))
+        // No API key: partition by IP
+        if (string.IsNullOrWhiteSpace(key))
         {
-            return (
+            return
+            (
                 ctx.Connection.RemoteIpAddress?.ToString()
                 ?? "anonymous",
                 ApiKeyTier.Anonymous
@@ -39,12 +40,17 @@ public static class ApiKeyResolver
         // Known API key
         if (Keys.TryGetValue(key, out var tier))
         {
-            return (key, tier);
+            return
+            (
+                key,
+                tier
+            );
         }
 
 
-        // Unknown API key
-        return (
+        // Unknown API key treated as anonymous tier
+        return
+        (
             key,
             ApiKeyTier.Anonymous
         );

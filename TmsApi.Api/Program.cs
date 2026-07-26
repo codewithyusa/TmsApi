@@ -1,32 +1,52 @@
-using TmsApi.Api;
-using TmsApi.Infrastructure.Services;
-using TmsApi.Api.Options;
+using System.Threading.RateLimiting;
+
 using Microsoft.AspNetCore.Authentication;
-using Scalar.AspNetCore;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
+
+using Scalar.AspNetCore;
 using Asp.Versioning;
 using FluentValidation;
-using TmsApi.Infrastructure.Persistence;
-using TmsApi.Domain.Entities;
-using TmsApi.Application.Interfaces;
-using TmsApi.Api.Middleware;
 using MediatR;
-using TmsApi.Application.Behaviors;
+
+using TmsApi.Api;
+using TmsApi.Api.Options;
+using TmsApi.Api.Middleware;
 using TmsApi.Api.ExceptionHandlers;
-using TmsApi.Application.Enrollments.Commands;
+using TmsApi.Api.RateLimiting;
+
+using TmsApi.Infrastructure.Services;
+using TmsApi.Infrastructure.Persistence;
 using TmsApi.Infrastructure.Persistence.Repositories;
-using Microsoft.Extensions.Caching.Hybrid;
+
+using TmsApi.Domain.Entities;
+
+using TmsApi.Application.Interfaces;
+using TmsApi.Application.Behaviors;
+using TmsApi.Application.Enrollments.Commands;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
+
 builder.Services.AddAuthentication("Training")
-    .AddScheme<AuthenticationSchemeOptions, TrainingAuthHandler>("Training", null);
+    .AddScheme<AuthenticationSchemeOptions, TrainingAuthHandler>(
+        "Training",
+        null);
+
 
 builder.Services.AddAuthorization();
 
+
 builder.Services.AddControllers();
 
+
+
+//
+// Hybrid Cache
+//
 builder.Services.AddHybridCache(options =>
 {
     options.DefaultEntryOptions = new HybridCacheEntryOptions
@@ -36,6 +56,113 @@ builder.Services.AddHybridCache(options =>
     };
 });
 
+
+
+//
+// Tier-aware Rate Limiting
+//
+builder.Services.AddRateLimiter(options =>
+{
+    options.GlobalLimiter =
+        PartitionedRateLimiter.Create<HttpContext, string>(
+            httpContext =>
+            {
+                var (partitionKey, tier) =
+                    ApiKeyResolver.Resolve(httpContext);
+
+
+                return tier switch
+                {
+                    ApiKeyTier.Paid =>
+                        RateLimitPartition.GetTokenBucketLimiter(
+                            $"paid:{partitionKey}",
+                            _ => new TokenBucketRateLimiterOptions
+                            {
+                                TokenLimit = 200,
+                                TokensPerPeriod = 100,
+                                ReplenishmentPeriod =
+                                    TimeSpan.FromSeconds(10),
+                                QueueLimit = 0,
+                                AutoReplenishment = true
+                            }),
+
+
+                    ApiKeyTier.Free =>
+                        RateLimitPartition.GetTokenBucketLimiter(
+                            $"free:{partitionKey}",
+                            _ => new TokenBucketRateLimiterOptions
+                            {
+                                TokenLimit = 30,
+                                TokensPerPeriod = 10,
+                                ReplenishmentPeriod =
+                                    TimeSpan.FromSeconds(10),
+                                QueueLimit = 0,
+                                AutoReplenishment = true
+                            }),
+
+
+                    _ =>
+                        RateLimitPartition.GetTokenBucketLimiter(
+                            $"anonymous:{partitionKey}",
+                            _ => new TokenBucketRateLimiterOptions
+                            {
+                                TokenLimit = 10,
+                                TokensPerPeriod = 5,
+                                ReplenishmentPeriod =
+                                    TimeSpan.FromSeconds(10),
+                                QueueLimit = 0,
+                                AutoReplenishment = true
+                            })
+                };
+            });
+
+
+    options.RejectionStatusCode =
+        StatusCodes.Status429TooManyRequests;
+
+
+    options.OnRejected = async (context, ct) =>
+    {
+        var retryAfter = "10";
+
+
+        if (context.Lease.TryGetMetadata(
+            MetadataName.RetryAfter,
+            out var retry))
+        {
+            retryAfter =
+                ((int)retry.TotalSeconds).ToString();
+        }
+
+
+        context.HttpContext.Response.Headers.RetryAfter =
+            retryAfter;
+
+
+        context.HttpContext.Response.ContentType =
+            "application/problem+json";
+
+
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new ProblemDetails
+            {
+                Title = "Rate limit exceeded",
+                Detail =
+                    $"Too many requests. Retry after {retryAfter} seconds.",
+                Status =
+                    StatusCodes.Status429TooManyRequests,
+                Type =
+                    "https://tms.local/errors/rate_limit_exceeded"
+            },
+            ct);
+    };
+});
+
+
+
+//
+// API Versioning
+//
 builder.Services.AddApiVersioning(options =>
 {
     options.DefaultApiVersion = new ApiVersion(1, 0);
@@ -52,28 +179,56 @@ builder.Services.AddApiVersioning(options =>
     options.SubstituteApiVersionInUrl = true;
 });
 
+
+
+//
+// Services
+//
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
+
 builder.Services.AddScoped<ICourseService, CachedCourseService>();
+
 builder.Services.AddScoped<ICachedCourseService, CachedCourseService>();
 
 builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
+
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 
+
+
+//
+// MediatR
+//
 builder.Services.AddMediatR(cfg =>
 {
-    cfg.RegisterServicesFromAssembly(typeof(EnrollStudentCommand).Assembly);
+    cfg.RegisterServicesFromAssembly(
+        typeof(EnrollStudentCommand).Assembly);
 
     cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+
     cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
 });
 
-builder.Services.AddValidatorsFromAssembly(typeof(EnrollStudentValidator).Assembly);
 
+
+builder.Services.AddValidatorsFromAssembly(
+    typeof(EnrollStudentValidator).Assembly);
+
+
+
+//
+// Database
+//
 builder.Services.AddDbContext<TmsDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("TmsDatabase"))
-        .LogTo(Console.WriteLine, LogLevel.Information)
-        .EnableSensitiveDataLogging()
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("TmsDatabase"))
+    .LogTo(
+        Console.WriteLine,
+        LogLevel.Information)
+    .EnableSensitiveDataLogging()
 );
+
+
 
 builder.Services
     .AddOptions<PaymentOptions>()
@@ -81,13 +236,19 @@ builder.Services
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+
+
 builder.Services.AddProblemDetails();
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddOpenApi();
 
+
+
 var app = builder.Build();
+
+
 
 app.UseMiddleware<RequestLoggingMiddleware>();
 
@@ -95,13 +256,22 @@ app.UseExceptionHandler();
 
 app.UseStatusCodePages();
 
+
 app.UseRouting();
+
+
+// RATE LIMITER MUST BE HERE
+app.UseRateLimiter();
+
 
 app.UseAuthentication();
 
 app.UseAuthorization();
 
+
 app.UseMiddleware<V1DeprecationMiddleware>();
+
+
 
 app.MapGet("/api/assessments/results", () =>
 {
@@ -114,73 +284,105 @@ app.MapGet("/api/assessments/results", () =>
 })
 .RequireAuthorization();
 
+
+
 app.MapControllers();
+
+
 
 app.MapGet("/api/error", () =>
 {
     throw new TmsDatabaseException(
-        "Simulated database failure for ProblemDetails testing"
-    );
+        "Simulated database failure for ProblemDetails testing");
 });
+
+
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
     app.MapScalarApiReference();
+
 
     using (var scope = app.Services.CreateScope())
     {
-        var context = scope.ServiceProvider.GetRequiredService<TmsDbContext>();
+        var context =
+            scope.ServiceProvider
+            .GetRequiredService<TmsDbContext>();
 
-        await TmsApi.Infrastructure.Persistence.DataSeeder.SeedAsync(context);
+        await DataSeeder.SeedAsync(context);
     }
 }
 else
 {
     app.UseExceptionHandler();
+
     app.UseStatusCodePages();
 }
 
+
+
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<TmsDbContext>();
+    var context =
+        scope.ServiceProvider
+        .GetRequiredService<TmsDbContext>();
+
 
     context.Database.Migrate();
+
 
     if (!context.Students.Any())
     {
         var students = new List<Student>
         {
-            new() { RegistrationNumber = "TMS-2026-0001", Name = "Alice Smith", GPA = 3.8m, IsActive = true },
-            new() { RegistrationNumber = "TMS-2026-0002", Name = "Bob Jones", GPA = 2.9m, IsActive = true },
-            new() { RegistrationNumber = "TMS-2026-0003", Name = "Charlie Brown", GPA = 3.4m, IsActive = false },
-            new() { RegistrationNumber = "TMS-2026-0004", Name = "Diana Prince", GPA = 3.9m, IsActive = true },
-            new() { RegistrationNumber = "TMS-2026-0005", Name = "Evan Wright", GPA = 2.5m, IsActive = true }
+            new()
+            {
+                RegistrationNumber="TMS-2026-0001",
+                Name="Alice Smith",
+                GPA=3.8m,
+                IsActive=true
+            },
+
+            new()
+            {
+                RegistrationNumber="TMS-2026-0002",
+                Name="Bob Jones",
+                GPA=2.9m,
+                IsActive=true
+            }
         };
+
 
         context.Students.AddRange(students);
 
+
         var courses = new List<Course>
         {
-            new() { Code = "CS-101", Title = "Introduction to Computer Science", MaxCapacity = 30 },
-            new() { Code = "CS-201", Title = "Data Structures and Algorithms", MaxCapacity = 25 },
-            new() { Code = "MAT-101", Title = "Calculus I", MaxCapacity = 40 }
+            new()
+            {
+                Code="CS-101",
+                Title="Introduction to Computer Science",
+                MaxCapacity=30
+            },
+
+            new()
+            {
+                Code="CS-201",
+                Title="Data Structures and Algorithms",
+                MaxCapacity=25
+            }
         };
+
 
         context.Courses.AddRange(courses);
-        context.SaveChanges();
 
-        var enrollments = new List<Enrollment>
-        {
-            new() { StudentId = students[0].Id, CourseId = courses[0].Id, Grade = 4.0m },
-            new() { StudentId = students[0].Id, CourseId = courses[1].Id, Grade = 3.6m },
-            new() { StudentId = students[1].Id, CourseId = courses[0].Id, Grade = 2.8m },
-            new() { StudentId = students[3].Id, CourseId = courses[1].Id, Grade = 3.9m }
-        };
 
-        context.Enrollments.AddRange(enrollments);
         context.SaveChanges();
     }
 }
+
+
 
 app.Run();
