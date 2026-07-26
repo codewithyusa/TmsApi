@@ -19,6 +19,7 @@ using TmsApi.Api.RateLimiting;
 using TmsApi.Infrastructure.Services;
 using TmsApi.Infrastructure.Persistence;
 using TmsApi.Infrastructure.Persistence.Repositories;
+using TmsApi.Infrastructure.Transcripts;
 
 using TmsApi.Domain.Entities;
 
@@ -26,9 +27,7 @@ using TmsApi.Application.Interfaces;
 using TmsApi.Application.Behaviors;
 using TmsApi.Application.Enrollments.Commands;
 
-
 var builder = WebApplication.CreateBuilder(args);
-
 
 // Authentication
 builder.Services.AddAuthentication("Training")
@@ -40,10 +39,8 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
 
-
 // Hybrid Cache
 builder.Services.AddHybridCache();
-
 
 // Rate Limiting
 builder.Services.AddRateLimiter(options =>
@@ -57,7 +54,6 @@ builder.Services.AddRateLimiter(options =>
             {
                 var (partitionKey, tier) =
                     ApiKeyResolver.Resolve(httpContext);
-
 
                 return tier switch
                 {
@@ -74,7 +70,6 @@ builder.Services.AddRateLimiter(options =>
                                 AutoReplenishment = true
                             }),
 
-
                     ApiKeyTier.Free =>
                         RateLimitPartition.GetTokenBucketLimiter(
                             $"free:{partitionKey}",
@@ -87,7 +82,6 @@ builder.Services.AddRateLimiter(options =>
                                 QueueLimit = 0,
                                 AutoReplenishment = true
                             }),
-
 
                     _ =>
                         RateLimitPartition.GetTokenBucketLimiter(
@@ -104,8 +98,6 @@ builder.Services.AddRateLimiter(options =>
                 };
             });
 
-
-
     //
     // Transcript concurrency limiter
     //
@@ -118,8 +110,6 @@ builder.Services.AddRateLimiter(options =>
             opt.QueueProcessingOrder =
                 QueueProcessingOrder.OldestFirst;
         });
-
-
 
     //
     // Search endpoint limiter
@@ -138,17 +128,12 @@ builder.Services.AddRateLimiter(options =>
             opt.AutoReplenishment = true;
         });
 
-
-
     options.RejectionStatusCode =
         StatusCodes.Status429TooManyRequests;
-
-
 
     options.OnRejected = async (context, ct) =>
     {
         var retryAfter = "10";
-
 
         if (context.Lease.TryGetMetadata(
             MetadataName.RetryAfter,
@@ -158,14 +143,11 @@ builder.Services.AddRateLimiter(options =>
                 ((int)retry.TotalSeconds).ToString();
         }
 
-
         context.HttpContext.Response.Headers.RetryAfter =
             retryAfter;
 
-
         context.HttpContext.Response.ContentType =
             "application/problem+json";
-
 
         await context.HttpContext.Response.WriteAsJsonAsync(
             new ProblemDetails
@@ -185,8 +167,6 @@ builder.Services.AddRateLimiter(options =>
             ct);
     };
 });
-
-
 
 // API Versioning
 builder.Services.AddApiVersioning(options =>
@@ -213,20 +193,14 @@ builder.Services.AddApiVersioning(options =>
     options.SubstituteApiVersionInUrl = true;
 });
 
-
-
 // Services
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
-
 builder.Services.AddScoped<ICourseService, CachedCourseService>();
-
 builder.Services.AddScoped<ICachedCourseService, CachedCourseService>();
-
 builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
-
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
-
-
+// Transcript background processing status store
+builder.Services.AddSingleton<ITranscriptStatusStore, InMemoryTranscriptStatusStore>();
 
 // MediatR
 builder.Services.AddMediatR(cfg =>
@@ -243,12 +217,8 @@ builder.Services.AddMediatR(cfg =>
         typeof(ValidationBehavior<,>));
 });
 
-
-
 builder.Services.AddValidatorsFromAssembly(
     typeof(EnrollStudentValidator).Assembly);
-
-
 
 // Database
 builder.Services.AddDbContext<TmsDbContext>(options =>
@@ -262,8 +232,6 @@ builder.Services.AddDbContext<TmsDbContext>(options =>
     .EnableSensitiveDataLogging()
 );
 
-
-
 // Options
 builder.Services
     .AddOptions<PaymentOptions>()
@@ -271,19 +239,13 @@ builder.Services
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-
-
 builder.Services.AddProblemDetails();
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddOpenApi();
 
-
-
 var app = builder.Build();
-
-
 
 app.UseMiddleware<RequestLoggingMiddleware>();
 
@@ -294,20 +256,14 @@ app.UseStatusCodePages();
 
 app.UseRouting();
 
-
 // Rate limiter must be after routing
 app.UseRateLimiter();
-
-
 
 app.UseAuthentication();
 
 app.UseAuthorization();
 
-
 app.UseMiddleware<V1DeprecationMiddleware>();
-
-
 
 // Health checks examples
 // app.MapHealthChecks("/health/live")
@@ -315,8 +271,6 @@ app.UseMiddleware<V1DeprecationMiddleware>();
 //
 // app.MapHealthChecks("/health/ready")
 //     .DisableRateLimiting();
-
-
 
 app.MapGet("/api/assessments/results", () =>
 {
@@ -329,11 +283,7 @@ app.MapGet("/api/assessments/results", () =>
 })
 .RequireAuthorization();
 
-
-
 app.MapControllers();
-
-
 
 app.MapGet("/api/error", () =>
 {
@@ -341,24 +291,18 @@ app.MapGet("/api/error", () =>
         "Simulated database failure for ProblemDetails testing");
 });
 
-
-
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 
     app.MapScalarApiReference();
 
-
     using var scope =
         app.Services.CreateScope();
-
 
     var context =
         scope.ServiceProvider
             .GetRequiredService<TmsDbContext>();
-
-
     await DataSeeder.SeedAsync(context);
 }
 else
@@ -368,17 +312,13 @@ else
     app.UseStatusCodePages();
 }
 
-
-
 using (var scope = app.Services.CreateScope())
 {
     var context =
         scope.ServiceProvider
             .GetRequiredService<TmsDbContext>();
 
-
     context.Database.Migrate();
-
 
     if (!context.Students.Any())
     {
@@ -401,10 +341,7 @@ using (var scope = app.Services.CreateScope())
             }
         };
 
-
         context.Students.AddRange(students);
-
-
 
         var courses = new List<Course>
         {
@@ -423,14 +360,10 @@ using (var scope = app.Services.CreateScope())
             }
         };
 
-
         context.Courses.AddRange(courses);
-
 
         context.SaveChanges();
     }
 }
-
-
 
 app.Run();
