@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using System.Threading.Channels;
 
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
@@ -20,12 +21,14 @@ using TmsApi.Infrastructure.Services;
 using TmsApi.Infrastructure.Persistence;
 using TmsApi.Infrastructure.Persistence.Repositories;
 using TmsApi.Infrastructure.Transcripts;
+using TmsApi.Infrastructure.Workers;
 
 using TmsApi.Domain.Entities;
 
 using TmsApi.Application.Interfaces;
 using TmsApi.Application.Behaviors;
 using TmsApi.Application.Enrollments.Commands;
+using TmsApi.Application.Transcripts;;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -200,7 +203,13 @@ builder.Services.AddScoped<ICachedCourseService, CachedCourseService>();
 builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 // Transcript background processing status store
+// Transcript background processing
 builder.Services.AddSingleton<ITranscriptStatusStore, InMemoryTranscriptStatusStore>();
+
+builder.Services.AddSingleton(
+    Channel.CreateUnbounded<TranscriptRequest>());
+
+builder.Services.AddHostedService<TranscriptWorker>();
 
 // MediatR
 builder.Services.AddMediatR(cfg =>
