@@ -23,7 +23,8 @@ public class TmsHub : Hub<ITmsHubClient>
     }
 
 
-    public async Task JoinCourseGroup(string courseCode)
+    public async Task JoinCourseGroup(
+        string courseCode)
     {
         await Groups.AddToGroupAsync(
             Context.ConnectionId,
@@ -31,7 +32,8 @@ public class TmsHub : Hub<ITmsHubClient>
     }
 
 
-    public async Task LeaveCourseGroup(string courseCode)
+    public async Task LeaveCourseGroup(
+        string courseCode)
     {
         await Groups.RemoveFromGroupAsync(
             Context.ConnectionId,
@@ -39,9 +41,9 @@ public class TmsHub : Hub<ITmsHubClient>
     }
 
 
-    public override async Task OnDisconnectedAsync(Exception? exception)
+    public override async Task OnDisconnectedAsync(
+        Exception? exception)
     {
-        // SignalR automatically removes disconnected clients from groups.
         await base.OnDisconnectedAsync(exception);
     }
 }
