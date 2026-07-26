@@ -53,7 +53,7 @@ builder.Services.AddApiVersioning(options =>
 });
 
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
-builder.Services.AddScoped<ICourseService, CourseService>();
+builder.Services.AddScoped<ICourseService, CachedCourseService>();
 builder.Services.AddScoped<ICachedCourseService, CachedCourseService>();
 
 builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
