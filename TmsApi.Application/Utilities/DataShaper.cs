@@ -1,4 +1,5 @@
 using System.Reflection;
+using TmsApi.Application.Exceptions;
 
 namespace TmsApi.Application.Utilities;
 
