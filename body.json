@@ -1,1 +1,4 @@
-﻿{"studentId":1,"courseCode":"CS-101"}
+﻿{
+  "studentId": 1,
+  "courseCode": "CSE-101"
+}
