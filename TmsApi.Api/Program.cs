@@ -299,12 +299,79 @@ app.MapControllers();
 
 app.MapHub<TmsHub>("/hubs/tms");
 
+
+// ------------------------------------------------------------
+// Lab-only fake certificate service
+// Exercise 8: Polly v8 Resilience Testing
+//
+// This simulates a real external certificate-printing service.
+// Production services would NOT contain this endpoint.
+// ------------------------------------------------------------
+
+var attempts = 0;
+
+app.MapPost("/fake/certificates", async () =>
+{
+    var n = Interlocked.Increment(ref attempts);
+
+
+    if (n % 7 == 0)
+    {
+        // Failure mode 1:
+        // Downstream accepted request but never responds.
+        // Polly timeout should handle this.
+
+        await Task.Delay(
+            TimeSpan.FromSeconds(20));
+
+        return Results.Ok(new
+        {
+            Status = "issued",
+            Attempt = n
+        });
+    }
+
+
+    if (n % 3 != 0)
+    {
+        // Failure mode 2:
+        // Temporary outage.
+        // Polly retry should handle 503.
+
+        return Results.StatusCode(
+            StatusCodes.Status503ServiceUnavailable);
+    }
+
+
+    if (n % 11 == 0)
+    {
+        // Failure mode 3:
+        // Permanent client error.
+        // Polly MUST NOT retry 400.
+
+        return Results.BadRequest(new
+        {
+            error = "validation_failed"
+        });
+    }
+
+
+    return Results.Ok(new
+    {
+        Status = "issued",
+        Attempt = n
+    });
+
+})
+.WithTags("lab-fixtures");
+
+
+
 app.MapGet("/api/error", () =>
 {
     throw new TmsDatabaseException(
         "Simulated database failure for ProblemDetails testing");
 });
-
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
