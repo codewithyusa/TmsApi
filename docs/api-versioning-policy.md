@@ -66,3 +66,13 @@ Header-based versioning using `X-Api-Version` is supported as a partner-specific
 The default API versioning strategy remains URL segments because URLs make the active version visible during debugging, monitoring, and incident response.
 
 Partners that cannot change cached URLs or CDN paths may request header-based versioning. The migration approach is agreed individually with each partner.
+
+**Step 7 – When Not to Use HATEOAS**
+
+HATEOAS should be used when the client and server are developed by different teams or when the API may evolve over time. In this case, clients can discover available resources and actions through links instead of relying on hardcoded URLs. For the TMS V2 API, HATEOAS is useful because it provides a stable contract for the Angular frontend and any future external integration partners.
+
+HATEOAS is usually unnecessary when the client and server are owned by the same team and evolve together, such as internal service-to-service communication between TMS microservices. In these situations, the additional complexity of generating and maintaining hypermedia links provides little benefit.
+
+HATEOAS should never replace API documentation. OpenAPI and Scalar remain essential for documenting endpoints, request and response models, authentication, and error handling. Hypermedia complements documentation by helping clients navigate the API at runtime.
+
+For most production REST APIs, a small set of links is sufficient. Collection resources typically include `self`, `next`, and `prev`, while detail resources include `self` and one relevant action link. Additional links should only be added when there is a real client requirement.
