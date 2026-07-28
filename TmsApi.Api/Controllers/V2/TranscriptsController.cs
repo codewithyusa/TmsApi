@@ -11,7 +11,7 @@ using TmsApi.Infrastructure.Transcripts;
 namespace TmsApi.Api.Controllers.V2;
 
 [ApiController]
-[Route("api/v2/transcripts")]
+[Route("api/v{version:apiVersion}/transcripts")]
 [ApiVersion("2.0")]
 public class TranscriptsController(
     Channel<TranscriptRequest> channel,
