@@ -311,6 +311,31 @@ builder.Services.AddResiliencePipeline(
         client.BaseAddress =
             new Uri(baseUrl);
     });
+
+    builder.Services.AddHttpClient<ICertificateService, CertificateService>(
+(sp, client) =>
+{
+    var baseUrl =
+        sp.GetRequiredService<IConfiguration>()
+          .GetValue<string>("TmsApi:PublicBaseUrl")
+        ?? "https://localhost:5001";
+
+    client.BaseAddress =
+        new Uri(baseUrl);
+});
+
+
+// Step 4: Simple HTTP client
+builder.Services.AddHttpClient("SmsService", client =>
+{
+    client.BaseAddress =
+        new Uri("https://sms.tms.internal");
+})
+.AddStandardResilienceHandler();
+
+
+// Transcript background processing status store
+builder.Services.AddSingleton<ITranscriptStatusStore, InMemoryTranscriptStatusStore>();
 // Transcript background processing status store
 // Transcript background processing
 builder.Services.AddSingleton<ITranscriptStatusStore, InMemoryTranscriptStatusStore>();
