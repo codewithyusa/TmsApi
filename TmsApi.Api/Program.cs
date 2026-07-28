@@ -28,6 +28,7 @@ using TmsApi.Infrastructure.Persistence;
 using TmsApi.Infrastructure.Persistence.Repositories;
 using TmsApi.Infrastructure.Transcripts;
 using TmsApi.Infrastructure.Workers;
+using TmsApi.Infrastructure.ExternalServices;
 
 using TmsApi.Domain.Entities;
 
@@ -211,6 +212,7 @@ builder.Services.AddScoped<ICachedCourseService, CachedCourseService>();
 builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 
+
 // ------------------------------------------------------------
 // Polly v8 Resilience Pipeline
 // Exercise 8 Step 2
@@ -296,6 +298,18 @@ builder.Services.AddResiliencePipeline(
                         return ValueTask.CompletedTask;
                     }
                 });
+    });
+
+    builder.Services.AddHttpClient<ICertificateService, CertificateService>(
+    (sp, client) =>
+    {
+        var baseUrl =
+            sp.GetRequiredService<IConfiguration>()
+              .GetValue<string>("TmsApi:PublicBaseUrl")
+            ?? "https://localhost:5001";
+
+        client.BaseAddress =
+            new Uri(baseUrl);
     });
 // Transcript background processing status store
 // Transcript background processing
