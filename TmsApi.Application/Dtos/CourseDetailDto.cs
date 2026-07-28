@@ -1,4 +1,7 @@
+using System.Text.Json.Serialization;
+
 namespace TmsApi.Application.Dtos;
+
 public record CourseDetailDto
 {
     public required int Id { get; init; }
@@ -6,5 +9,9 @@ public record CourseDetailDto
     public required string Title { get; init; }
     public required int MaxCapacity { get; init; }
     public required int EnrollmentCount { get; init; }
+    
+    [JsonIgnore]
+    public string? InternalNotes { get; init; }
+
     public required IReadOnlyList<LinkDto> Links { get; init; }
 }
