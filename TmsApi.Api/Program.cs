@@ -11,6 +11,11 @@ using Asp.Versioning;
 using FluentValidation;
 using MediatR;
 
+using Polly;
+using Polly.CircuitBreaker;
+using Polly.Retry;
+using Polly.Timeout;
+
 using TmsApi.Api;
 using TmsApi.Api.Options;
 using TmsApi.Api.Middleware;
@@ -205,6 +210,93 @@ builder.Services.AddScoped<ICourseService, CachedCourseService>();
 builder.Services.AddScoped<ICachedCourseService, CachedCourseService>();
 builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
+
+// ------------------------------------------------------------
+// Polly v8 Resilience Pipeline
+// Exercise 8 Step 2
+// ------------------------------------------------------------
+
+builder.Services.AddResiliencePipeline(
+    "certificate-api",
+    pipeline =>
+    {
+        pipeline
+
+            // Outer: protects against hanging requests
+            .AddTimeout(
+                TimeSpan.FromSeconds(5))
+
+
+            // Middle: protects against sustained failures
+            .AddCircuitBreaker(
+                new CircuitBreakerStrategyOptions
+                {
+                    FailureRatio = 0.5,
+
+                    MinimumThroughput = 10,
+
+                    SamplingDuration =
+                        TimeSpan.FromSeconds(30),
+
+                    BreakDuration =
+                        TimeSpan.FromSeconds(15),
+
+
+                    ShouldHandle =
+                        new PredicateBuilder()
+                            .Handle<HttpRequestException>()
+                            .Handle<TimeoutRejectedException>(),
+
+
+                    OnOpened = args =>
+                    {
+                        Console.WriteLine(
+                            "Circuit OPENED - stopping requests to certificate service");
+
+                        return ValueTask.CompletedTask;
+                    },
+
+
+                    OnClosed = args =>
+                    {
+                        Console.WriteLine(
+                            "Circuit CLOSED - certificate service recovered");
+
+                        return ValueTask.CompletedTask;
+                    }
+                })
+
+
+            // Inner: retry only transient failures
+            .AddRetry(
+                new RetryStrategyOptions
+                {
+                    MaxRetryAttempts = 3,
+
+                    Delay =
+                        TimeSpan.FromMilliseconds(500),
+
+                    BackoffType =
+                        DelayBackoffType.Exponential,
+
+                    UseJitter = true,
+
+
+                    ShouldHandle =
+                        new PredicateBuilder()
+                            .Handle<HttpRequestException>()
+                            .Handle<TimeoutRejectedException>(),
+
+
+                    OnRetry = args =>
+                    {
+                        Console.WriteLine(
+                            $"Retry #{args.AttemptNumber} after {args.RetryDelay.TotalMilliseconds:F0}ms ({args.Outcome.Exception?.GetType().Name})");
+
+                        return ValueTask.CompletedTask;
+                    }
+                });
+    });
 // Transcript background processing status store
 // Transcript background processing
 builder.Services.AddSingleton<ITranscriptStatusStore, InMemoryTranscriptStatusStore>();
