@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using TmsApi.Application.Exceptions;
 using TmsApi.Domain.Exceptions;
 
 namespace TmsApi.Api.ExceptionHandlers;
@@ -25,6 +26,12 @@ public class GlobalExceptionHandler(
                         g => g.Key,
                         g => g.Select(e => e.ErrorMessage).ToArray())),
 
+            BadRequestException bre => (
+                StatusCodes.Status400BadRequest,
+                "Bad request",
+                bre.Message,
+                (IDictionary<string, string[]>?)null),
+
             NotFoundException nfe => (
                 StatusCodes.Status404NotFound,
                 "Resource not found",
@@ -38,6 +45,7 @@ public class GlobalExceptionHandler(
                 null)
         };
 
+
         if (status == StatusCodes.Status500InternalServerError)
         {
             logger.LogError(
@@ -45,6 +53,7 @@ public class GlobalExceptionHandler(
                 "Unhandled exception (trace={TraceId})",
                 httpContext.TraceIdentifier);
         }
+
 
         var problem = new ProblemDetails
         {
@@ -54,13 +63,21 @@ public class GlobalExceptionHandler(
             Instance = httpContext.Request.Path
         };
 
+
         if (errors is not null)
+        {
             problem.Extensions["errors"] = errors;
+        }
+
 
         httpContext.Response.StatusCode = status;
         httpContext.Response.ContentType = "application/problem+json";
 
-        await httpContext.Response.WriteAsJsonAsync(problem, ct);
+
+        await httpContext.Response.WriteAsJsonAsync(
+            problem,
+            ct);
+
 
         return true;
     }

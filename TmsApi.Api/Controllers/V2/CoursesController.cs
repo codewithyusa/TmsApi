@@ -1,59 +1,131 @@
 ﻿using Asp.Versioning;
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using TmsApi.Application.Enrollments.Commands;
-using TmsApi.Application.Enrollments.Queries;
+using TmsApi.Application.Dtos;
+using TmsApi.Application.Interfaces;
+using TmsApi.Application.Utilities;
 
 namespace TmsApi.Api.Controllers.V2;
 
 [ApiController]
-[Route("api/v{version:apiVersion}/enrollments")]
+[Route("api/v{version:apiVersion}/courses")]
 [ApiVersion("2.0")]
-public class EnrollmentsController(IMediator mediator) : ControllerBase
+[Tags("Courses")]
+[Produces("application/json")]
+public class CoursesController(
+    ICourseService courseService)
+    : ControllerBase
 {
-    [HttpPost]
-    public async Task<IActionResult> Enroll(
-        EnrollStudentCommand command,
+    [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCourses(
+        [FromQuery] string? fields,
+        [FromQuery] PagedRequest request,
         CancellationToken ct)
     {
-        var result = await mediator.Send(command, ct);
+        var courses = await courseService.GetCoursesAsync(
+            request,
+            ct);
 
-        return result.Match<IActionResult>(
-            onSuccess: created => CreatedAtAction(
-                nameof(GetSchedule),
-                new { studentId = created.StudentId },
-                created),
+        var shaped = courses.Items.ShapeData(
+            fields,
+            CourseResponseDtoFields.Allowed);
 
-            onFailure: error =>
+        var links = new List<LinkDto>
+        {
+            new(
+                Url.Action(
+                    nameof(GetCourses),
+                    new
+                    {
+                        page = courses.Page,
+                        fields
+                    })!,
+                "self",
+                "GET")
+        };
+
+        if (courses.HasNext)
+        {
+            links.Add(
+                new LinkDto(
+                    Url.Action(
+                        nameof(GetCourses),
+                        new
+                        {
+                            page = courses.Page + 1,
+                            fields
+                        })!,
+                    "next",
+                    "GET"));
+        }
+
+        if (courses.HasPrevious)
+        {
+            links.Add(
+                new LinkDto(
+                    Url.Action(
+                        nameof(GetCourses),
+                        new
+                        {
+                            page = courses.Page - 1,
+                            fields
+                        })!,
+                    "prev",
+                    "GET"));
+        }
+
+        return Ok(new
+        {
+            Data = shaped,
+            Meta = new
             {
-                var status = error.Code switch
-                {
-                    "course_not_found" => StatusCodes.Status404NotFound,
-
-                    "course_full" or "already_enrolled" =>
-                        StatusCodes.Status409Conflict,
-
-                    _ => StatusCodes.Status400BadRequest
-                };
-
-                return Problem(
-                    statusCode: status,
-                    title: "Enrollment rejected",
-                    detail: error.Message,
-                    type: $"https://tms.local/errors/{error.Code}");
-            });
+                courses.TotalCount,
+                courses.Page,
+                courses.TotalPages,
+                courses.HasNext,
+                courses.HasPrevious
+            },
+            Links = links
+        });
     }
 
 
-    [HttpGet("{studentId}/schedule")]
-    public async Task<IActionResult> GetSchedule(
-        int studentId,
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCourse(
+        int id,
         CancellationToken ct)
     {
-        var schedule = await mediator.Send(
-            new GetStudentScheduleQuery(studentId),
+        var course = await courseService.GetByIdAsync(
+            id,
             ct);
 
-        return Ok(schedule);
+        if (course is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(new
+        {
+            Data = course,
+            Links = new[]
+            {
+                new LinkDto(
+                    Url.Action(
+                        nameof(GetCourse),
+                        new { id })!,
+                    "self",
+                    "GET"),
+
+                new LinkDto(
+                    Url.Action(
+                        "Enroll",
+                        "Enrollments",
+                        new { courseId = id })!,
+                    "enroll",
+                    "POST")
+            }
+        });
     }
 }
