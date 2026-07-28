@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 using Scalar.AspNetCore;
 using Asp.Versioning;
@@ -312,19 +314,6 @@ builder.Services.AddResiliencePipeline(
             new Uri(baseUrl);
     });
 
-    builder.Services.AddHttpClient<ICertificateService, CertificateService>(
-(sp, client) =>
-{
-    var baseUrl =
-        sp.GetRequiredService<IConfiguration>()
-          .GetValue<string>("TmsApi:PublicBaseUrl")
-        ?? "https://localhost:5001";
-
-    client.BaseAddress =
-        new Uri(baseUrl);
-});
-
-
 // Step 4: Simple HTTP client
 builder.Services.AddHttpClient("SmsService", client =>
 {
@@ -388,6 +377,16 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddOpenApi();
 
+builder.Services.AddHealthChecks()
+    .AddCheck(
+        "self",
+        () => HealthCheckResult.Healthy("alive"),
+        tags: new[] { "live" })
+    .AddNpgSql(
+        builder.Configuration.GetConnectionString("TmsDatabase")!,
+        name: "postgres",
+        tags: new[] { "ready" });
+
 var app = builder.Build();
 
 app.UseMiddleware<RequestLoggingMiddleware>();
@@ -408,12 +407,17 @@ app.UseAuthorization();
 
 app.UseMiddleware<V1DeprecationMiddleware>();
 
-// Health checks examples
-// app.MapHealthChecks("/health/live")
-//     .DisableRateLimiting();
-//
-// app.MapHealthChecks("/health/ready")
-//     .DisableRateLimiting();
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live")
+})
+.DisableRateLimiting();
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+})
+.DisableRateLimiting();
 
 app.MapGet("/api/assessments/results", () =>
 {
