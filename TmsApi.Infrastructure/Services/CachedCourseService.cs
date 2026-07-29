@@ -5,6 +5,7 @@ using TmsApi.Application.Dtos;
 using TmsApi.Application.DTOs;
 using TmsApi.Application.Interfaces;
 using TmsApi.Domain.Entities;
+using TmsApi.Infrastructure.Caching;
 using TmsApi.Infrastructure.Persistence;
 
 namespace TmsApi.Infrastructure.Services;
@@ -39,11 +40,17 @@ public class CachedCourseService(
     {
         var key = CourseByCodeCacheKey(code);
 
-        return await cache.GetOrCreateAsync(
+        // Flag flips to true only if the factory delegate below actually
+        // runs, which HybridCache only does on a miss.
+        var wasMiss = false;
+
+        var result = await cache.GetOrCreateAsync(
             key,
 
             async cancel =>
             {
+                wasMiss = true;
+
                 logger.LogInformation(
                     "Cache MISS for {CacheKey} fetching from DB",
                     key);
@@ -83,6 +90,13 @@ public class CachedCourseService(
             ],
 
             cancellationToken: ct);
+
+        if (wasMiss)
+            TmsMeters.CacheMisses.Add(1, new KeyValuePair<string, object?>("key.kind", "course"));
+        else
+            TmsMeters.CacheHits.Add(1, new KeyValuePair<string, object?>("key.kind", "course"));
+
+        return result;
     }
 
 
@@ -92,12 +106,15 @@ public class CachedCourseService(
     {
         var key = AllCoursesCacheKey;
 
+        var wasMiss = false;
 
-        return await cache.GetOrCreateAsync(
+        var result = await cache.GetOrCreateAsync(
             key,
 
             async cancel =>
             {
+                wasMiss = true;
+
                 logger.LogInformation(
                     "Cache MISS for {CacheKey} fetching from DB",
                     key);
@@ -128,6 +145,13 @@ public class CachedCourseService(
             ],
 
             cancellationToken: ct);
+
+        if (wasMiss)
+            TmsMeters.CacheMisses.Add(1, new KeyValuePair<string, object?>("key.kind", "course"));
+        else
+            TmsMeters.CacheHits.Add(1, new KeyValuePair<string, object?>("key.kind", "course"));
+
+        return result;
     }
 
 

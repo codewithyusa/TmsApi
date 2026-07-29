@@ -12,7 +12,8 @@ namespace TmsApi.Api.Controllers.V2;
 [Tags("Courses")]
 [Produces("application/json")]
 public class CoursesController(
-    ICourseService courseService)
+    ICourseService courseService,
+    ICachedCourseService cachedCourseService)
     : ControllerBase
 {
     [HttpGet]
@@ -87,6 +88,17 @@ public class CoursesController(
             },
             Links = links
         });
+    }
+
+
+    // Ex3/Ex9 test endpoint: goes through HybridCache + tms.cache.hits/misses metering.
+    // Call this repeatedly to see one "Cache MISS" log then subsequent hits with no DB log line.
+    [HttpGet("cached")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCachedCourses(CancellationToken ct)
+    {
+        var courses = await cachedCourseService.GetAllCoursesAsync(ct);
+        return Ok(courses);
     }
 
 
