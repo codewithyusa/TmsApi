@@ -14,6 +14,9 @@ public class GlobalExceptionHandler(
         Exception exception,
         CancellationToken ct)
     {
+        var traceId = System.Diagnostics.Activity.Current?.TraceId.ToString()
+            ?? httpContext.TraceIdentifier;
+
         var (status, title, detail, errors) = exception switch
         {
             ValidationException ve => (
@@ -41,7 +44,7 @@ public class GlobalExceptionHandler(
             _ => (
                 StatusCodes.Status500InternalServerError,
                 "Server error",
-                $"An unexpected error occurred. Trace ID: {httpContext.TraceIdentifier}",
+                $"An unexpected error occurred. Trace ID: {traceId}",
                 null)
         };
 
@@ -51,7 +54,7 @@ public class GlobalExceptionHandler(
             logger.LogError(
                 exception,
                 "Unhandled exception (trace={TraceId})",
-                httpContext.TraceIdentifier);
+                traceId);
         }
 
 

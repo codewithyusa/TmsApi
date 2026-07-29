@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging.Console;
 
 using Scalar.AspNetCore;
 using Asp.Versioning;
@@ -17,6 +18,10 @@ using Polly;
 using Polly.CircuitBreaker;
 using Polly.Retry;
 using Polly.Timeout;
+
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 using TmsApi.Api;
 using TmsApi.Api.Options;
@@ -40,6 +45,32 @@ using TmsApi.Application.Enrollments.Commands;
 using TmsApi.Application.Transcripts;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.ClearProviders();
+builder.Logging.AddJsonConsole(options =>
+{
+    options.IncludeScopes = true;
+    options.JsonWriterOptions = new() { Indented = false };
+});
+
+// ------------------------------------------------------------
+// OpenTelemetry: traces + metrics (Exercise 9 · Step 3)
+// ------------------------------------------------------------
+const string ServiceName = "tms-api";
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r.AddService(serviceName: ServiceName, serviceVersion: "1.0.0"))
+    .WithTracing(t => t
+        .AddSource(ServiceName)
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter())
+    .WithMetrics(m => m
+        .AddMeter(ServiceName)
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddOtlpExporter());
 
 // Authentication
 builder.Services.AddAuthentication("Training")
@@ -323,10 +354,6 @@ builder.Services.AddHttpClient("SmsService", client =>
 .AddStandardResilienceHandler();
 
 
-// Transcript background processing status store
-builder.Services.AddSingleton<ITranscriptStatusStore, InMemoryTranscriptStatusStore>();
-// Transcript background processing status store
-// Transcript background processing
 builder.Services.AddSingleton<ITranscriptStatusStore, InMemoryTranscriptStatusStore>();
 
 builder.Services.AddSingleton(
@@ -354,13 +381,7 @@ builder.Services.AddValidatorsFromAssembly(
 
 // Database
 builder.Services.AddDbContext<TmsDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("TmsDatabase"))
-
-    .LogTo(
-        Console.WriteLine,
-        LogLevel.Information)
-
+    options.UseNpgsql(builder.Configuration.GetConnectionString("TmsDatabase"))
     .EnableSensitiveDataLogging()
 );
 
@@ -434,15 +455,6 @@ app.MapControllers();
 
 app.MapHub<TmsHub>("/hubs/tms");
 
-
-// ------------------------------------------------------------
-// Lab-only fake certificate service
-// Exercise 8: Polly v8 Resilience Testing
-//
-// This simulates a real external certificate-printing service.
-// Production services would NOT contain this endpoint.
-// ------------------------------------------------------------
-
 var attempts = 0;
 
 app.MapPost("/fake/certificates", async () =>
@@ -452,9 +464,6 @@ app.MapPost("/fake/certificates", async () =>
 
     if (n % 7 == 0)
     {
-        // Failure mode 1:
-        // Downstream accepted request but never responds.
-        // Polly timeout should handle this.
 
         await Task.Delay(
             TimeSpan.FromSeconds(20));
@@ -469,10 +478,6 @@ app.MapPost("/fake/certificates", async () =>
 
     if (n % 3 != 0)
     {
-        // Failure mode 2:
-        // Temporary outage.
-        // Polly retry should handle 503.
-
         return Results.StatusCode(
             StatusCodes.Status503ServiceUnavailable);
     }
@@ -480,10 +485,6 @@ app.MapPost("/fake/certificates", async () =>
 
     if (n % 11 == 0)
     {
-        // Failure mode 3:
-        // Permanent client error.
-        // Polly MUST NOT retry 400.
-
         return Results.BadRequest(new
         {
             error = "validation_failed"
@@ -499,7 +500,6 @@ app.MapPost("/fake/certificates", async () =>
 
 })
 .WithTags("lab-fixtures");
-
 
 
 app.MapGet("/api/error", () =>
