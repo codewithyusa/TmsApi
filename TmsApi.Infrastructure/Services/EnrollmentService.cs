@@ -72,4 +72,22 @@ public class EnrollmentService(
         var created = await GetByIdAsync(courseId, enrollment.Id, ct);
         return created!;
     }
+
+    public async Task<bool> ApproveAsync(int id, CancellationToken ct)
+    {
+        var enrollment = await context.Enrollments
+            .FirstOrDefaultAsync(e => e.Id == id, ct);
+
+        if (enrollment is null)
+        {
+            logger.LogWarning("ApproveAsync: enrollment {EnrollmentId} not found", id);
+            return false;
+        }
+
+        enrollment.Status = EnrollmentStatus.Approved;
+        await context.SaveChangesAsync(ct);
+
+        logger.LogInformation("Enrollment {EnrollmentId} approved", id);
+        return true;
+    }
 }
