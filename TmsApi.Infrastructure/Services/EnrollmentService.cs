@@ -22,7 +22,10 @@ public class EnrollmentService(
             .Select(e => new EnrollmentResponseDto(
                 e.Id,
                 e.CourseId,
+                e.Course.Title,
                 e.StudentId,
+                e.Student.Name,
+                e.Status.ToString(),
                 e.EnrolledAt))
             .FirstOrDefaultAsync(ct);
 
@@ -36,7 +39,10 @@ public class EnrollmentService(
             .Select(e => new EnrollmentResponseDto(
                 e.Id,
                 e.CourseId,
+                e.Course.Title,
                 e.StudentId,
+                e.Student.Name,
+                e.Status.ToString(),
                 e.EnrolledAt))
             .ToListAsync(ct);
     }

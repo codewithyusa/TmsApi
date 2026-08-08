@@ -83,6 +83,16 @@ builder.Services.AddControllers();
 
 builder.Services.AddSignalR();
 
+// ------------------------------------------------------------
+// CORS: allow the Angular dev server to call this API
+// ------------------------------------------------------------
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngular", policy =>
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
 
 // Hybrid Cache
 builder.Services.AddHybridCache();
@@ -244,6 +254,7 @@ builder.Services.AddScoped<ICourseService, CachedCourseService>();
 builder.Services.AddScoped<ICachedCourseService, CachedCourseService>();
 builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
+builder.Services.AddScoped<IGradeService, GradeService>();
 
 
 // ------------------------------------------------------------
@@ -418,6 +429,12 @@ app.UseStatusCodePages();
 
 
 app.UseRouting();
+
+// ------------------------------------------------------------
+// CORS middleware must run after UseRouting and before
+// UseAuthorization / MapControllers
+// ------------------------------------------------------------
+app.UseCors("AllowAngular");
 
 // Rate limiter must be after routing
 app.UseRateLimiter();
