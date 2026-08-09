@@ -47,6 +47,21 @@ public class EnrollmentService(
             .ToListAsync(ct);
     }
 
+    public async Task<List<EnrollmentResponseDto>> GetAllAsync(CancellationToken ct)
+    {
+        return await context.Enrollments
+            .AsNoTracking()
+            .Select(e => new EnrollmentResponseDto(
+                e.Id,
+                e.CourseId,
+                e.Course.Title,
+                e.StudentId,
+                e.Student.Name,
+                e.Status.ToString(),
+                e.EnrolledAt))
+            .ToListAsync(ct);
+    }
+
     public async Task<EnrollmentResponseDto> CreateAsync(
         int courseId,
         EnrollStudentRequest request,

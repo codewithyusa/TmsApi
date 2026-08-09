@@ -1,0 +1,1 @@
+UPDATE "Enrollments" SET "Status" = 0 WHERE "Id" = 1;

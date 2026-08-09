@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using System.Threading;
 using System.Threading.Tasks;
+using TmsApi.Api.Hubs;
 using TmsApi.Application.Dtos;
+using TmsApi.Application.Hubs;
 using TmsApi.Application.Interfaces;
 
 namespace TmsApi.Api.Controllers;
@@ -13,7 +16,9 @@ namespace TmsApi.Api.Controllers;
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
 public class EnrollmentsController(
     ICourseService courseService,
-    IEnrollmentService enrollmentService
+    IEnrollmentService enrollmentService,
+    IHubContext<TmsHub, ITmsHubClient> hubContext,
+    ILogger<EnrollmentsController> logger
 ) : ControllerBase
 {
     [HttpGet(Name = "ListCourseEnrollments")]
@@ -84,5 +89,37 @@ public class EnrollmentsController(
             new { courseId, id = enrollment.Id },
             enrollment
         );
+    }
+
+    [HttpGet("~/api/enrollments", Name = "ListAllEnrollments")]
+    [ProducesResponseType(typeof(IReadOnlyList<EnrollmentResponseDto>), StatusCodes.Status200OK)]
+    [EndpointSummary("List all enrollments across all courses")]
+    public async Task<IActionResult> GetAllEnrollments(CancellationToken ct)
+    {
+        var enrollments = await enrollmentService.GetAllAsync(ct);
+        return Ok(enrollments);
+    }
+
+    [HttpPost("~/api/enrollments/{id:int}/approve", Name = "ApproveEnrollment")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [EndpointSummary("Approve a pending enrollment")]
+    public async Task<IActionResult> Approve(int id, CancellationToken ct)
+    {
+        var approved = await enrollmentService.ApproveAsync(id, ct);
+        if (!approved)
+            return NotFound();
+
+        try
+        {
+            await hubContext.Clients.All
+                .ReceiveEnrollmentStatusUpdated(id.ToString(), "Approved");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to broadcast enrollment {Id} approval", id);
+        }
+
+        return NoContent();
     }
 }

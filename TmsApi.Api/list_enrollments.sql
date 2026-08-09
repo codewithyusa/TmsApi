@@ -1,0 +1,1 @@
+SELECT "Id", "StudentId", "CourseId", "Status" FROM "Enrollments";

@@ -263,6 +263,7 @@ builder.Services.AddScoped<IGradeService, GradeService>();
 // ------------------------------------------------------------
 
 builder.Services.AddResiliencePipeline(
+
     "certificate-api",
     pipeline =>
     {

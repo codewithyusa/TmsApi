@@ -19,4 +19,5 @@ public interface IEnrollmentService
 
     // New: approve an enrollment by its own Id (not scoped to a course)
     Task<bool> ApproveAsync(int id, CancellationToken ct);
+Task<List<EnrollmentResponseDto>> GetAllAsync(CancellationToken ct);
 }
