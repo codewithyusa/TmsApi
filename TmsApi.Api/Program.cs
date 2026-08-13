@@ -434,10 +434,6 @@ app.UseStatusCodePages();
 
 app.UseRouting();
 
-// ------------------------------------------------------------
-// CORS middleware must run after UseRouting and before
-// UseAuthorization / MapControllers
-// ------------------------------------------------------------
 app.UseCors("AllowAngular");
 
 // Rate limiter must be after routing
