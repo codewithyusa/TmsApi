@@ -53,9 +53,6 @@ builder.Logging.AddJsonConsole(options =>
     options.JsonWriterOptions = new() { Indented = false };
 });
 
-// ------------------------------------------------------------
-// OpenTelemetry: traces + metrics (Exercise 9 · Step 3)
-// ------------------------------------------------------------
 const string ServiceName = "tms-api";
 
 builder.Services.AddOpenTelemetry()
@@ -84,14 +81,25 @@ builder.Services.AddControllers();
 builder.Services.AddSignalR();
 
 // ------------------------------------------------------------
-// CORS: allow the Angular dev server to call this API
+// CORS: allow origins configured in appsettings
 // ------------------------------------------------------------
+
+// Load allowed origins from configuration
+var allowedOrigins = builder.Configuration
+    .GetSection("AllowedOrigins")
+    .Get<string[]>() ?? ["http://localhost:4200"];
+
+// Register named CORS policy
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngular", policy =>
-        policy.WithOrigins("http://localhost:4200")
+    options.AddPolicy("TmsClient", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
-              .AllowAnyMethod());
+              .AllowAnyMethod()
+              .AllowCredentials()
+              .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+    });
 });
 
 // Hybrid Cache
@@ -256,11 +264,6 @@ builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 builder.Services.AddScoped<IGradeService, GradeService>();
 
-
-// ------------------------------------------------------------
-// Polly v8 Resilience Pipeline
-// Exercise 8 Step 2
-// ------------------------------------------------------------
 
 builder.Services.AddResiliencePipeline(
 
