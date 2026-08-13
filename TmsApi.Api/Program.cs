@@ -434,7 +434,7 @@ app.UseStatusCodePages();
 
 app.UseRouting();
 
-app.UseCors("AllowAngular");
+app.UseCors("TmsClient");
 
 // Rate limiter must be after routing
 app.UseRateLimiter();
