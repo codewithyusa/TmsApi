@@ -81,11 +81,6 @@ builder.Services.AddControllers();
 
 builder.Services.AddSignalR();
 
-// ------------------------------------------------------------
-// CORS: allow origins configured in appsettings
-// ------------------------------------------------------------
-
-// Load allowed origins from configuration
 var allowedOrigins = builder.Configuration
     .GetSection("AllowedOrigins")
     .Get<string[]>() ?? ["http://localhost:4200"];
@@ -440,12 +435,43 @@ app.UseRouting();
 
 app.UseCors("TmsClient");
 
-// Rate limiter must be after routing
 app.UseRateLimiter();
 
 app.UseAuthentication();
 
 app.UseAuthorization();
+
+// ------------------------------------------------------------
+// XSRF: issue readable token cookie for authenticated sessions
+// ------------------------------------------------------------
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true ||
+        context.Request.Cookies.ContainsKey("tms_auth"))
+    {
+        var antiforgery =
+            context.RequestServices
+                .GetRequiredService<IAntiforgery>();
+
+        var tokens =
+            antiforgery.GetAndStoreTokens(context);
+
+        context.Response.Cookies.Append(
+            "XSRF-TOKEN",
+            tokens.RequestToken!,
+            new CookieOptions
+            {
+                // Angular must be able to read this cookie.
+                HttpOnly = false,
+
+                Secure = !builder.Environment.IsDevelopment(),
+
+                SameSite = SameSiteMode.Strict
+            });
+    }
+
+    await next(context);
+});
 
 app.UseMiddleware<V1DeprecationMiddleware>();
 
