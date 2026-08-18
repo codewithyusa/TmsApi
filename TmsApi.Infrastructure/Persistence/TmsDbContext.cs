@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Threading;
@@ -6,7 +7,7 @@ using TmsApi.Domain.Entities;
 
 namespace TmsApi.Infrastructure.Persistence;
 
-public class TmsDbContext : DbContext
+public class TmsDbContext : IdentityDbContext<TmsUser>
 {
     public TmsDbContext(DbContextOptions<TmsDbContext> options)
         : base(options)
@@ -21,6 +22,7 @@ public class TmsDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Important: this creates the ASP.NET Core Identity tables/configuration.
         base.OnModelCreating(modelBuilder);
 
         // Enrollment -> Student
@@ -57,7 +59,8 @@ public class TmsDbContext : DbContext
         return base.SaveChanges();
     }
 
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public override Task<int> SaveChangesAsync(
+        CancellationToken cancellationToken = default)
     {
         UpdateAudit();
         return base.SaveChangesAsync(cancellationToken);
