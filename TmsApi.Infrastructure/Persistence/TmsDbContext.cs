@@ -14,15 +14,19 @@ public class TmsDbContext : IdentityDbContext<TmsUser>
     {
     }
 
+    // Existing entities
     public DbSet<Student> Students { get; set; }
     public DbSet<Course> Courses { get; set; }
     public DbSet<Enrollment> Enrollments { get; set; }
     public DbSet<Assessment> Assessments { get; set; }
     public DbSet<Certificate> Certificates { get; set; }
 
+    // Refresh tokens
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Important: this creates the ASP.NET Core Identity tables/configuration.
+        // ASP.NET Core Identity configuration
         base.OnModelCreating(modelBuilder);
 
         // Enrollment -> Student
@@ -56,6 +60,7 @@ public class TmsDbContext : IdentityDbContext<TmsUser>
     public override int SaveChanges()
     {
         UpdateAudit();
+
         return base.SaveChanges();
     }
 
@@ -63,6 +68,7 @@ public class TmsDbContext : IdentityDbContext<TmsUser>
         CancellationToken cancellationToken = default)
     {
         UpdateAudit();
+
         return base.SaveChangesAsync(cancellationToken);
     }
 
@@ -73,7 +79,8 @@ public class TmsDbContext : IdentityDbContext<TmsUser>
             if (entry.State == EntityState.Added ||
                 entry.State == EntityState.Modified)
             {
-                entry.Property("LastUpdated").CurrentValue = DateTime.UtcNow;
+                entry.Property("LastUpdated").CurrentValue =
+                    DateTime.UtcNow;
             }
         }
     }
