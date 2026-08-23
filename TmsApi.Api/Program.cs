@@ -4,6 +4,7 @@ using System.Text;
 
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -12,6 +13,8 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.IdentityModel.Tokens;
+
+using TmsApi.Api.Authorization;
 
 
 using Scalar.AspNetCore;
@@ -111,8 +114,17 @@ builder.Services.AddAuthentication(options =>
         };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("CanEditCourse", policy =>
+    {
+        policy.Requirements.Add(
+            new CourseInstructorRequirement());
+    });
+
+builder.Services.AddSingleton<IAuthorizationHandler, CourseInstructorHandler>();
+
 builder.Services.AddControllers();
+
 
 
 builder.Services.AddSignalR();
