@@ -206,6 +206,16 @@ builder.Services.AddRateLimiter(options =>
             });
 
     //
+    // Auth login rate limiter
+    //
+    options.AddFixedWindowLimiter("AuthLimiter", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+
+    //
     // Transcript concurrency limiter
     //
     options.AddConcurrencyLimiter(
@@ -392,17 +402,17 @@ builder.Services.AddResiliencePipeline(
                 });
     });
 
-    builder.Services.AddHttpClient<ICertificateService, CertificateService>(
-    (sp, client) =>
-    {
-        var baseUrl =
-            sp.GetRequiredService<IConfiguration>()
-              .GetValue<string>("TmsApi:PublicBaseUrl")
-            ?? "https://localhost:5001";
+builder.Services.AddHttpClient<ICertificateService, CertificateService>(
+(sp, client) =>
+{
+    var baseUrl =
+        sp.GetRequiredService<IConfiguration>()
+          .GetValue<string>("TmsApi:PublicBaseUrl")
+        ?? "https://localhost:5001";
 
-        client.BaseAddress =
-            new Uri(baseUrl);
-    });
+    client.BaseAddress =
+        new Uri(baseUrl);
+});
 
 // Step 4: Simple HTTP client
 builder.Services.AddHttpClient("SmsService", client =>
