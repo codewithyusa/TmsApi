@@ -12,19 +12,43 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // 1. Supply required test configuration
+        // Run the API using the Testing environment.
+        builder.UseEnvironment("Testing");
+
+        // Supply configuration required when the real API starts.
+        // The PostgreSQL connection string is only a dummy value here.
+        // The actual TmsDbContext is replaced with EF Core InMemory below.
         builder.ConfigureAppConfiguration((context, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Jwt:Key"]      = "ThisIsASecretKeyForTestingPurposesOnly123456!",
-                ["Jwt:Secret"]   = "ThisIsASecretKeyForTestingPurposesOnly123456!",
-                ["Jwt:Issuer"]   = "TmsTestIssuer",
-                ["Jwt:Audience"] = "TmsTestAudience"
+                ["Jwt:Key"] =
+                    "ThisIsASecretKeyForTestingPurposesOnly123456!",
+
+                ["Jwt:Secret"] =
+                    "ThisIsASecretKeyForTestingPurposesOnly123456!",
+
+                ["Jwt:Issuer"] =
+                    "TmsTestIssuer",
+
+                ["Jwt:Audience"] =
+                    "TmsTestAudience",
+
+                ["Payments:GatewayUrl"] =
+                    "https://test-gateway.example.com",
+
+                ["Payments:MaxDepositBirr"] =
+                    "10000",
+
+                // Required by Program.cs when registering the PostgreSQL
+                // health check. This is NOT used as the test database.
+                ["ConnectionStrings:TmsDatabase"] =
+                    "Host=localhost;Database=TmsTest;Username=test;Password=test"
             });
         });
 
-        // 2. Remove production DbContext and register InMemory
+        // Replace the production PostgreSQL DbContext with
+        // an isolated EF Core InMemory database.
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<DbContextOptions<TmsDbContext>>();
