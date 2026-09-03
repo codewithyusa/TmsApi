@@ -56,10 +56,10 @@ using TmsApi.Application.Transcripts;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.ClearProviders();
-builder.Logging.AddJsonConsole(options =>
+builder.Logging.AddSimpleConsole(options =>
 {
-    options.IncludeScopes = true;
-    options.JsonWriterOptions = new() { Indented = false };
+    options.SingleLine = true;
+    options.TimestampFormat = "HH:mm:ss ";
 });
 
 const string ServiceName = "tms-api";
@@ -304,11 +304,12 @@ builder.Services.AddApiVersioning(options =>
 })
 .AddApiExplorer(options =>
 {
-    options.GroupNameFormat =
-        "'v'VVV";
-
+    options.GroupNameFormat = "'v'VVV";
     options.SubstituteApiVersionInUrl = true;
 });
+
+// Add this line:
+builder.Services.AddOpenApi("v1");
 
 // Services
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
@@ -508,29 +509,7 @@ app.UseStatusCodePages();
 
 app.UseRouting();
 
-// ------------------------------------------------------------
-// Security Response Headers
-// ------------------------------------------------------------
-app.Use(async (context, next) =>
-{
-    context.Response.Headers.Append(
-        "X-Content-Type-Options",
-        "nosniff");
 
-    context.Response.Headers.Append(
-        "X-Frame-Options",
-        "DENY");
-
-    context.Response.Headers.Append(
-        "Referrer-Policy",
-        "strict-origin-when-cross-origin");
-
-    context.Response.Headers.Append(
-        "Content-Security-Policy",
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';");
-
-    await next();
-});
 
 app.UseCors("TmsClient");
 
@@ -545,31 +524,15 @@ app.UseAuthorization();;
 // ------------------------------------------------------------
 app.Use(async (context, next) =>
 {
-    if (context.User.Identity?.IsAuthenticated == true ||
-        context.Request.Cookies.ContainsKey("tms_auth"))
+    if (!context.Request.Path.StartsWithSegments("/scalar"))
     {
-        var antiforgery =
-            context.RequestServices
-                .GetRequiredService<IAntiforgery>();
-
-        var tokens =
-            antiforgery.GetAndStoreTokens(context);
-
-        context.Response.Cookies.Append(
-            "XSRF-TOKEN",
-            tokens.RequestToken!,
-            new CookieOptions
-            {
-                // Angular must be able to read this cookie.
-                HttpOnly = false,
-
-                Secure = !builder.Environment.IsDevelopment(),
-
-                SameSite = SameSiteMode.Strict
-            });
+        context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+        context.Response.Headers.Append("X-Frame-Options", "DENY");
+        context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+        context.Response.Headers.Append("Content-Security-Policy",
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';");
     }
-
-    await next(context);
+    await next();
 });
 
 app.UseMiddleware<V1DeprecationMiddleware>();
@@ -657,20 +620,18 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 
-    app.MapScalarApiReference();
+    app.MapScalarApiReference(options =>
+    {
+        options.OpenApiRoutePattern = "/openapi/{documentName}.json";
+    });
 
-    using var scope =
-        app.Services.CreateScope();
-
-    var context =
-        scope.ServiceProvider
-            .GetRequiredService<TmsDbContext>();
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<TmsDbContext>();
     await DataSeeder.SeedAsync(context);
 }
 else
 {
     app.UseExceptionHandler();
-
     app.UseStatusCodePages();
 }
 
